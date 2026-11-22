@@ -25,6 +25,13 @@ namespace src.utils
     /// client has, so a frame that changes nothing writes nothing. PanoramaManager rebuilds the panel after a
     /// round restart or a respawn (PanelAction.Restored) from the layout as authored, so the cache goes back to
     /// the authored classes and the next frame redraws everything.</para>
+    ///
+    /// <para><b>Every bar is a clip ladder with one fixed glide.</b> heroes_hud.css carries at-0..at-50 (2% a step)
+    /// on a clip with a 0.3s linear transition that no class changes. A value (fuel) names its step; a timed run
+    /// (cooldowns, the draw, planting, the alert) gets the step for where it will be one glide from now, every
+    /// <see cref="BarEvery"/>. That replaced runs as one long transition (snap, then a dur-* class and run-fill /
+    /// run-drain 0.35s later), which did not draw in game: nothing has shown a class-swapped transition-duration
+    /// working there.</para>
     /// </summary>
     internal static class HeroesHud
     {
@@ -42,8 +49,21 @@ namespace src.utils
         /// <summary>The exit transition, before a panel collapses.</summary>
         private static readonly TimeSpan Exit = TimeSpan.FromSeconds(0.35);
 
-        /// <summary>Snap, wait, run: a run started in the same moment as its snap does not reach the client as two states.</summary>
+        /// <summary>How long an emptied alert bar takes to be full again before the next alert shows: a little over the glide.</summary>
         private static readonly TimeSpan BarWait = TimeSpan.FromSeconds(0.35);
+
+        /// <summary>
+        /// The .hr-bar and .al-bar transition-duration in heroes_hud.css. A run's every step is aimed this far ahead
+        /// of the clock, so the fill arrives where the run is instead of trailing it, and ends as the run does.
+        /// </summary>
+        private static readonly TimeSpan Glide = TimeSpan.FromSeconds(0.3);
+
+        /// <summary>How often a running bar gets its next step. Under <see cref="Glide"/>, so the fill never stops
+        /// between steps; the HUD frame is every 4 ticks.</summary>
+        private static readonly TimeSpan BarEvery = TimeSpan.FromSeconds(0.2);
+
+        /// <summary>The bars, for the scrub on a redraw.</summary>
+        private static readonly string[] BarIds = ["hs_bar", "sp_bar", "al_bar"];
 
         private const double AlertSeconds = 5.0;
         private const double CoinSeconds = 2.6;
@@ -129,7 +149,20 @@ namespace src.utils
             if (e.Player is not { IsValid: true }) return;
 
             if (e.Action == PanelAction.Restored)
+            {
+                // A kept entity still wears the bar steps the old view turned on, and the new view does not know
+                // them: take them off, or the stylesheet paints the higher of two steps. On a rebuilt one, a no-op.
+                if (panel != null && views.TryGetValue(e.Player.Slot, out var old))
+                {
+                    foreach (var id in BarIds)
+                    {
+                        if (old.Groups.TryGetValue((id, "at"), out var step) && step != null)
+                            panel.SetClassFor(e.Player, id, step, false);
+                    }
+                }
+
                 views[e.Player.Slot] = new View();
+            }
             else if (e.Action == PanelAction.Close)
                 views.Remove(e.Player.Slot);
         }
@@ -881,7 +914,7 @@ namespace src.utils
             One(p, v, AlertId, "pos", site ? "p-site" : "p-card");
             One(p, v, AlertId, "c", Cross ? "c-cross" : "c-bottom");
 
-            // A new alert comes up once the last one has left and its bar has sat full long enough to run again
+            // A new alert comes up once the last one has left and its bar has glided back to full
             if (v.AlertPending != null && v.AlertShown == null && slot.Collapsed && now - v.AlertBarResetAt >= BarWait)
             {
                 v.AlertShown = v.AlertPending;
@@ -899,7 +932,14 @@ namespace src.utils
             if (slot.Shown && v.AlertUntil == DateTime.MaxValue)
             {
                 v.AlertUntil = now.AddSeconds(AlertSeconds);
-                Cls(p, v, "al_bar", "run", true);
+                v.AlertBarNextAt = DateTime.MinValue;
+            }
+
+            // The drain over the banner's 5 seconds, a step every BarEvery, aimed one glide ahead
+            if (slot.Shown && v.AlertUntil != DateTime.MaxValue && now >= v.AlertBarNextAt)
+            {
+                v.AlertBarNextAt = now + BarEvery;
+                AlertBar(p, v, (v.AlertUntil - now - Glide).TotalSeconds / AlertSeconds);
             }
 
             if (shown.CountTo != DateTime.MinValue)
@@ -919,8 +959,8 @@ namespace src.utils
                 v.LastAlertKey = shown.Key;
                 v.LastAlertEnd = now;
                 v.AlertShown = null;
-                // Out of sight: the bar goes back to full for the next one
-                Cls(p, v, "al_bar", "run", false);
+                // Out of sight: the bar glides back to full for the next one
+                AlertBar(p, v, 1);
                 v.AlertBarResetAt = now;
             }
         }
@@ -1075,26 +1115,22 @@ namespace src.utils
             public BarMode Mode;
             public DateTime Start, End;
             public bool Fill;
-            public DateTime RunAt = DateTime.MaxValue;
+
+            /// <summary>When a run may get its next step.</summary>
+            public DateTime NextStepAt = DateTime.MinValue;
         }
 
-        /// <summary>The dur-* classes heroes_hud.css ships, in seconds: quarters to 10, every second to 60, every 5 to 180.</summary>
-        private static readonly (double Seconds, string Cls)[] Durations =
-        [
-            .. Enumerable.Range(1, 40).Select(q => (q * 0.25, $"dur-q{q}")),
-            .. Enumerable.Range(11, 50).Select(s => ((double)s, $"dur-{s}")),
-            .. Enumerable.Range(13, 24).Select(i => ((double)(i * 5), $"dur-{i * 5}")),
-        ];
+        private static int StepOf(double fraction) =>
+            Math.Clamp((int)Math.Round(fraction * BarSteps, MidpointRounding.AwayFromZero), 0, BarSteps);
 
-        private static string DurationClass(double seconds)
+        private static string AtClass(double fraction) => $"at-{StepOf(fraction)}";
+
+        /// <summary>The alert bar's step for <paramref name="fraction"/> (1 = full, its default, written as no step).</summary>
+        private static void AlertBar(CCSPlayerController p, View v, double fraction)
         {
-            var best = Durations[0];
-            foreach (var d in Durations)
-                if (Math.Abs(d.Seconds - seconds) < Math.Abs(best.Seconds - seconds)) best = d;
-            return best.Cls;
+            int step = StepOf(fraction);
+            One(p, v, "al_bar", "at", step >= BarSteps ? null : $"at-{step}");
         }
-
-        private static string AtClass(double fraction) => $"at-{Math.Clamp((int)Math.Round(fraction * BarSteps), 0, BarSteps)}";
 
         private static void DriveBar(CCSPlayerController p, View v, string id, BarView b, BarSpec spec, DateTime now)
         {
@@ -1103,22 +1139,17 @@ namespace src.utils
             switch (spec.Mode)
             {
                 case BarMode.None:
-                    // Hidden by the track: park it empty so the next run starts from a known place
+                    // Hidden by the track: park it empty, so the next run glides from a known place
                     if (b.Mode != BarMode.None) ParkBar(p, v, id, b);
                     return;
 
                 case BarMode.Static:
                     b.Mode = BarMode.Static;
-                    b.RunAt = DateTime.MaxValue;
-                    One(p, v, id, "run", null);
-                    One(p, v, id, "dur", null);
-                    One(p, v, id, "ease", "ease");
                     One(p, v, id, "at", AtClass(spec.Value));
                     return;
 
                 case BarMode.Run:
                 {
-                    double length = (spec.End - spec.Start).TotalSeconds;
                     bool same = b.Mode == BarMode.Run && b.Fill == spec.Fill
                         && Math.Abs((b.End - spec.End).TotalSeconds) < 0.3
                         && Math.Abs((b.Start - spec.Start).TotalSeconds) < 0.3;
@@ -1129,30 +1160,17 @@ namespace src.utils
                         b.Start = spec.Start;
                         b.End = spec.End;
                         b.Fill = spec.Fill;
-
-                        // Snap to where the bar will be once the run can start, with no duration on
-                        var startAt = now + BarWait;
-                        double f = length <= 0 ? 1 : Math.Clamp((startAt - spec.Start).TotalSeconds / length, 0, 1);
-                        One(p, v, id, "run", null);
-                        One(p, v, id, "dur", null);
-                        One(p, v, id, "ease", null);
-                        One(p, v, id, "at", AtClass(spec.Fill ? f : 1 - f));
-                        b.RunAt = startAt;
-                        return;
+                        b.NextStepAt = DateTime.MinValue;
                     }
 
-                    if (b.RunAt != DateTime.MaxValue && now >= b.RunAt)
-                    {
-                        b.RunAt = DateTime.MaxValue;
-                        double left = (b.End - now).TotalSeconds;
-                        if (left > 0.2)
-                        {
-                            One(p, v, id, "dur", DurationClass(left));
-                            One(p, v, id, "run", b.Fill ? "run-fill" : "run-drain");
-                        }
-                        else
-                            One(p, v, id, "at", b.Fill ? AtClass(1) : AtClass(0));
-                    }
+                    // A step every BarEvery, for where the run will be one glide from now. A new run needs nothing
+                    // special: its first step is where it is, and the glide takes the fill there.
+                    if (now < b.NextStepAt) return;
+                    b.NextStepAt = now + BarEvery;
+
+                    double length = (b.End - b.Start).TotalSeconds;
+                    double f = length <= 0 ? 1 : Math.Clamp((now + Glide - b.Start).TotalSeconds / length, 0, 1);
+                    One(p, v, id, "at", AtClass(b.Fill ? f : 1 - f));
                     return;
                 }
             }
@@ -1160,12 +1178,8 @@ namespace src.utils
 
         private static void ParkBar(CCSPlayerController p, View v, string id, BarView b)
         {
-            if (b.Mode == BarMode.None && b.RunAt == DateTime.MaxValue) return;
+            if (b.Mode == BarMode.None) return;
             b.Mode = BarMode.None;
-            b.RunAt = DateTime.MaxValue;
-            One(p, v, id, "run", null);
-            One(p, v, id, "dur", null);
-            One(p, v, id, "ease", null);
             One(p, v, id, "at", "at-0");
         }
 
@@ -1230,6 +1244,7 @@ namespace src.utils
             public AlertModel? AlertShown, AlertPending;
             public DateTime AlertUntil = DateTime.MaxValue;
             public DateTime AlertBarResetAt = DateTime.MinValue;
+            public DateTime AlertBarNextAt = DateTime.MinValue;
             public int AlertNum = int.MinValue;
             public string? LastAlertKey;
             public DateTime LastAlertEnd = DateTime.MinValue;

@@ -44,8 +44,8 @@
 		  hs_big     v-good v-mid v-bad | pop-a pop-b
 		  hs_tog     t-off | pop-a pop-b
 		  hs_pip0..4 on cut
-		  hs_bar     at-0..at-50 (2% steps) | dur-q1..dur-q40 (0.25 s steps), dur-11..dur-60,
-		             dur-65..dur-180 | run-fill run-drain | ease | b-good b-mid b-bad b-draw
+		  hs_bar     at-0..at-50 (2% steps; one fixed 0.3s glide, a timed run steps every 0.2s)
+		             | b-good b-mid b-bad b-draw
 		  hr_spec    show hidden | h-<hue> | k-<kind> | track | swap-a swap-b
 		  sp_rar     rar-0..rar-4          sp_via   none                  sp_state  none
 		  sp_big     v-good v-mid v-bad | pop-a pop-b
@@ -53,7 +53,7 @@
 		  hr_alert   show hidden | p-site p-card | c-bottom c-cross | no-num
 		             a-bomb a-hot a-ok a-site a-read a-hit
 		             i-planted i-c4 i-check i-sitea i-siteb i-ghost i-cross
-		  al_chip    none | h-<hue>        al_num   pop-a pop-b           al_bar  run
+		  al_chip    none | h-<hue>        al_num   pop-a pop-b           al_bar  at-0..at-50
 		  hr_coins   show hidden | p-under p-beside | max
 		  cn_amt     pop-a pop-b
 

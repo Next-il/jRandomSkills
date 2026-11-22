@@ -10,11 +10,12 @@
     addon: every image is CS2's own.
 
     THE BARS are clips, never width (a width transition restarts whenever a label in the card is rewritten,
-    runtime-behaviour.md). Two ways to move one:
-      - a step: at-N (2% steps) with "ease", for values that change (fuel);
-      - a run: at-N with no duration snaps the start, then dur-* and run-fill / run-drain together let the
-        client run it to 100% or 0% on its own (cooldowns, the draw, planting). The plugin takes dur-* and
-        run-* off before the next snap so a reset snaps instead of running backwards.
+    runtime-behaviour.md), and each is a ladder with ONE fixed glide: at-0..at-50 (2% a step) and a 0.3s
+    linear transition that no class changes. A value that changes (fuel) names its step; a timed run
+    (cooldowns, the draw, planting, the alert's 5 seconds) gets a new step every 0.2s, aimed one glide
+    ahead of the clock, so the fill keeps moving between steps. That replaced runs as one long transition
+    (snap to at-N, then dur-* and run-fill / run-drain, or "run" with its own 5s on the alert), which did
+    not draw in game: nothing has shown a class-swapped transition-duration working there.
 
     UNVERIFIED IN GAME, each with a harmless failure:
       - blur in transition-property: if blur does not animate, a panel is simply sharp at once.
@@ -86,7 +87,7 @@
     flow-children: down;
     border-top: 2px solid #e8ebee;
     world-blur: gaussian(8.0);
-    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ee2), to(#0b0f14ec));
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ec6), to(#0b0f14d0));
     transform: translateY(44px);
 }
 .hs.show { transform: translateY(0px); }
@@ -689,7 +690,7 @@
     flow-children: down;
     border-top: 2px solid #e8543f;
     world-blur: gaussian(8.0);
-    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ee2), to(#0b0f14ec));
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ec6), to(#0b0f14d0));
     transform: translateY(-26px);
 }
 .al.show { transform: translateY(0px); }
@@ -799,19 +800,16 @@
     width: 100%;
     height: 2px;
 }
-/* Full at rest; "run" drains it in 5 seconds, the time the banner shows. */
+/* Full at rest. The plugin drains it over the 5 seconds the banner shows, at-50 to at-0 (the ladder is
+   with the other bars at the end of this file). */
 .al-bar {
     width: 100%;
     height: 100%;
     background-color: #e8543f;
     clip: rect( 0%, 100%, 100%, 0% );
     transition-property: clip;
-    transition-duration: 0.0s;
+    transition-duration: 0.3s;
     transition-timing-function: linear;
-}
-.al-bar.run {
-    clip: rect( 0%, 0%, 100%, 0% );
-    transition-duration: 5.0s;
 }
 
 .al.a-bomb { border-top-color: #e8543f; }
@@ -904,14 +902,14 @@
 
 /* ------------------------------------------------------------------ the bar: card and spectator line */
 
-/* Empty by default with no duration, so taking "run" and dur-* off snaps it instead of animating. */
+/* Empty by default. One fixed glide, which no class changes. */
 .hr-bar {
     width: 100%;
     height: 100%;
     background-color: #e8ebee;
     clip: rect( 0%, 0%, 100%, 0% );
     transition-property: clip;
-    transition-duration: 0.0s;
+    transition-duration: 0.3s;
     transition-timing-function: linear;
 }
 
@@ -968,129 +966,55 @@
 .hr-bar.at-49 { clip: rect( 0%, 98%, 100%, 0% ); }
 .hr-bar.at-50 { clip: rect( 0%, 100%, 100%, 0% ); }
 
-/* How long a run takes: quarter seconds to 10, then every second to 60, then every 5 to 180.
-   The plugin picks the nearest. */
-.hr-bar.dur-q1 { transition-duration: 0.25s; }
-.hr-bar.dur-q2 { transition-duration: 0.50s; }
-.hr-bar.dur-q3 { transition-duration: 0.75s; }
-.hr-bar.dur-q4 { transition-duration: 1.00s; }
-.hr-bar.dur-q5 { transition-duration: 1.25s; }
-.hr-bar.dur-q6 { transition-duration: 1.50s; }
-.hr-bar.dur-q7 { transition-duration: 1.75s; }
-.hr-bar.dur-q8 { transition-duration: 2.00s; }
-.hr-bar.dur-q9 { transition-duration: 2.25s; }
-.hr-bar.dur-q10 { transition-duration: 2.50s; }
-.hr-bar.dur-q11 { transition-duration: 2.75s; }
-.hr-bar.dur-q12 { transition-duration: 3.00s; }
-.hr-bar.dur-q13 { transition-duration: 3.25s; }
-.hr-bar.dur-q14 { transition-duration: 3.50s; }
-.hr-bar.dur-q15 { transition-duration: 3.75s; }
-.hr-bar.dur-q16 { transition-duration: 4.00s; }
-.hr-bar.dur-q17 { transition-duration: 4.25s; }
-.hr-bar.dur-q18 { transition-duration: 4.50s; }
-.hr-bar.dur-q19 { transition-duration: 4.75s; }
-.hr-bar.dur-q20 { transition-duration: 5.00s; }
-.hr-bar.dur-q21 { transition-duration: 5.25s; }
-.hr-bar.dur-q22 { transition-duration: 5.50s; }
-.hr-bar.dur-q23 { transition-duration: 5.75s; }
-.hr-bar.dur-q24 { transition-duration: 6.00s; }
-.hr-bar.dur-q25 { transition-duration: 6.25s; }
-.hr-bar.dur-q26 { transition-duration: 6.50s; }
-.hr-bar.dur-q27 { transition-duration: 6.75s; }
-.hr-bar.dur-q28 { transition-duration: 7.00s; }
-.hr-bar.dur-q29 { transition-duration: 7.25s; }
-.hr-bar.dur-q30 { transition-duration: 7.50s; }
-.hr-bar.dur-q31 { transition-duration: 7.75s; }
-.hr-bar.dur-q32 { transition-duration: 8.00s; }
-.hr-bar.dur-q33 { transition-duration: 8.25s; }
-.hr-bar.dur-q34 { transition-duration: 8.50s; }
-.hr-bar.dur-q35 { transition-duration: 8.75s; }
-.hr-bar.dur-q36 { transition-duration: 9.00s; }
-.hr-bar.dur-q37 { transition-duration: 9.25s; }
-.hr-bar.dur-q38 { transition-duration: 9.50s; }
-.hr-bar.dur-q39 { transition-duration: 9.75s; }
-.hr-bar.dur-q40 { transition-duration: 10.00s; }
-.hr-bar.dur-11 { transition-duration: 11.0s; }
-.hr-bar.dur-12 { transition-duration: 12.0s; }
-.hr-bar.dur-13 { transition-duration: 13.0s; }
-.hr-bar.dur-14 { transition-duration: 14.0s; }
-.hr-bar.dur-15 { transition-duration: 15.0s; }
-.hr-bar.dur-16 { transition-duration: 16.0s; }
-.hr-bar.dur-17 { transition-duration: 17.0s; }
-.hr-bar.dur-18 { transition-duration: 18.0s; }
-.hr-bar.dur-19 { transition-duration: 19.0s; }
-.hr-bar.dur-20 { transition-duration: 20.0s; }
-.hr-bar.dur-21 { transition-duration: 21.0s; }
-.hr-bar.dur-22 { transition-duration: 22.0s; }
-.hr-bar.dur-23 { transition-duration: 23.0s; }
-.hr-bar.dur-24 { transition-duration: 24.0s; }
-.hr-bar.dur-25 { transition-duration: 25.0s; }
-.hr-bar.dur-26 { transition-duration: 26.0s; }
-.hr-bar.dur-27 { transition-duration: 27.0s; }
-.hr-bar.dur-28 { transition-duration: 28.0s; }
-.hr-bar.dur-29 { transition-duration: 29.0s; }
-.hr-bar.dur-30 { transition-duration: 30.0s; }
-.hr-bar.dur-31 { transition-duration: 31.0s; }
-.hr-bar.dur-32 { transition-duration: 32.0s; }
-.hr-bar.dur-33 { transition-duration: 33.0s; }
-.hr-bar.dur-34 { transition-duration: 34.0s; }
-.hr-bar.dur-35 { transition-duration: 35.0s; }
-.hr-bar.dur-36 { transition-duration: 36.0s; }
-.hr-bar.dur-37 { transition-duration: 37.0s; }
-.hr-bar.dur-38 { transition-duration: 38.0s; }
-.hr-bar.dur-39 { transition-duration: 39.0s; }
-.hr-bar.dur-40 { transition-duration: 40.0s; }
-.hr-bar.dur-41 { transition-duration: 41.0s; }
-.hr-bar.dur-42 { transition-duration: 42.0s; }
-.hr-bar.dur-43 { transition-duration: 43.0s; }
-.hr-bar.dur-44 { transition-duration: 44.0s; }
-.hr-bar.dur-45 { transition-duration: 45.0s; }
-.hr-bar.dur-46 { transition-duration: 46.0s; }
-.hr-bar.dur-47 { transition-duration: 47.0s; }
-.hr-bar.dur-48 { transition-duration: 48.0s; }
-.hr-bar.dur-49 { transition-duration: 49.0s; }
-.hr-bar.dur-50 { transition-duration: 50.0s; }
-.hr-bar.dur-51 { transition-duration: 51.0s; }
-.hr-bar.dur-52 { transition-duration: 52.0s; }
-.hr-bar.dur-53 { transition-duration: 53.0s; }
-.hr-bar.dur-54 { transition-duration: 54.0s; }
-.hr-bar.dur-55 { transition-duration: 55.0s; }
-.hr-bar.dur-56 { transition-duration: 56.0s; }
-.hr-bar.dur-57 { transition-duration: 57.0s; }
-.hr-bar.dur-58 { transition-duration: 58.0s; }
-.hr-bar.dur-59 { transition-duration: 59.0s; }
-.hr-bar.dur-60 { transition-duration: 60.0s; }
-.hr-bar.dur-65 { transition-duration: 65.0s; }
-.hr-bar.dur-70 { transition-duration: 70.0s; }
-.hr-bar.dur-75 { transition-duration: 75.0s; }
-.hr-bar.dur-80 { transition-duration: 80.0s; }
-.hr-bar.dur-85 { transition-duration: 85.0s; }
-.hr-bar.dur-90 { transition-duration: 90.0s; }
-.hr-bar.dur-95 { transition-duration: 95.0s; }
-.hr-bar.dur-100 { transition-duration: 100.0s; }
-.hr-bar.dur-105 { transition-duration: 105.0s; }
-.hr-bar.dur-110 { transition-duration: 110.0s; }
-.hr-bar.dur-115 { transition-duration: 115.0s; }
-.hr-bar.dur-120 { transition-duration: 120.0s; }
-.hr-bar.dur-125 { transition-duration: 125.0s; }
-.hr-bar.dur-130 { transition-duration: 130.0s; }
-.hr-bar.dur-135 { transition-duration: 135.0s; }
-.hr-bar.dur-140 { transition-duration: 140.0s; }
-.hr-bar.dur-145 { transition-duration: 145.0s; }
-.hr-bar.dur-150 { transition-duration: 150.0s; }
-.hr-bar.dur-155 { transition-duration: 155.0s; }
-.hr-bar.dur-160 { transition-duration: 160.0s; }
-.hr-bar.dur-165 { transition-duration: 165.0s; }
-.hr-bar.dur-170 { transition-duration: 170.0s; }
-.hr-bar.dur-175 { transition-duration: 175.0s; }
-.hr-bar.dur-180 { transition-duration: 180.0s; }
-
-/* A value that moves (fuel): each step eases. */
-.hr-bar.ease {
-    transition-duration: 0.25s;
-    transition-timing-function: ease-out;
-}
-
-/* After the at-N ladder, so they win over any of them: same specificity, later rule. */
-.hr-bar.run-fill  { clip: rect( 0%, 100%, 100%, 0% ); }
-.hr-bar.run-drain { clip: rect( 0%, 0%, 100%, 0% ); }
+/* The alert bar, the same steps: at-50 full (also its default), at-0 empty. */
+.al-bar.at-0 { clip: rect( 0%, 0%, 100%, 0% ); }
+.al-bar.at-1 { clip: rect( 0%, 2%, 100%, 0% ); }
+.al-bar.at-2 { clip: rect( 0%, 4%, 100%, 0% ); }
+.al-bar.at-3 { clip: rect( 0%, 6%, 100%, 0% ); }
+.al-bar.at-4 { clip: rect( 0%, 8%, 100%, 0% ); }
+.al-bar.at-5 { clip: rect( 0%, 10%, 100%, 0% ); }
+.al-bar.at-6 { clip: rect( 0%, 12%, 100%, 0% ); }
+.al-bar.at-7 { clip: rect( 0%, 14%, 100%, 0% ); }
+.al-bar.at-8 { clip: rect( 0%, 16%, 100%, 0% ); }
+.al-bar.at-9 { clip: rect( 0%, 18%, 100%, 0% ); }
+.al-bar.at-10 { clip: rect( 0%, 20%, 100%, 0% ); }
+.al-bar.at-11 { clip: rect( 0%, 22%, 100%, 0% ); }
+.al-bar.at-12 { clip: rect( 0%, 24%, 100%, 0% ); }
+.al-bar.at-13 { clip: rect( 0%, 26%, 100%, 0% ); }
+.al-bar.at-14 { clip: rect( 0%, 28%, 100%, 0% ); }
+.al-bar.at-15 { clip: rect( 0%, 30%, 100%, 0% ); }
+.al-bar.at-16 { clip: rect( 0%, 32%, 100%, 0% ); }
+.al-bar.at-17 { clip: rect( 0%, 34%, 100%, 0% ); }
+.al-bar.at-18 { clip: rect( 0%, 36%, 100%, 0% ); }
+.al-bar.at-19 { clip: rect( 0%, 38%, 100%, 0% ); }
+.al-bar.at-20 { clip: rect( 0%, 40%, 100%, 0% ); }
+.al-bar.at-21 { clip: rect( 0%, 42%, 100%, 0% ); }
+.al-bar.at-22 { clip: rect( 0%, 44%, 100%, 0% ); }
+.al-bar.at-23 { clip: rect( 0%, 46%, 100%, 0% ); }
+.al-bar.at-24 { clip: rect( 0%, 48%, 100%, 0% ); }
+.al-bar.at-25 { clip: rect( 0%, 50%, 100%, 0% ); }
+.al-bar.at-26 { clip: rect( 0%, 52%, 100%, 0% ); }
+.al-bar.at-27 { clip: rect( 0%, 54%, 100%, 0% ); }
+.al-bar.at-28 { clip: rect( 0%, 56%, 100%, 0% ); }
+.al-bar.at-29 { clip: rect( 0%, 58%, 100%, 0% ); }
+.al-bar.at-30 { clip: rect( 0%, 60%, 100%, 0% ); }
+.al-bar.at-31 { clip: rect( 0%, 62%, 100%, 0% ); }
+.al-bar.at-32 { clip: rect( 0%, 64%, 100%, 0% ); }
+.al-bar.at-33 { clip: rect( 0%, 66%, 100%, 0% ); }
+.al-bar.at-34 { clip: rect( 0%, 68%, 100%, 0% ); }
+.al-bar.at-35 { clip: rect( 0%, 70%, 100%, 0% ); }
+.al-bar.at-36 { clip: rect( 0%, 72%, 100%, 0% ); }
+.al-bar.at-37 { clip: rect( 0%, 74%, 100%, 0% ); }
+.al-bar.at-38 { clip: rect( 0%, 76%, 100%, 0% ); }
+.al-bar.at-39 { clip: rect( 0%, 78%, 100%, 0% ); }
+.al-bar.at-40 { clip: rect( 0%, 80%, 100%, 0% ); }
+.al-bar.at-41 { clip: rect( 0%, 82%, 100%, 0% ); }
+.al-bar.at-42 { clip: rect( 0%, 84%, 100%, 0% ); }
+.al-bar.at-43 { clip: rect( 0%, 86%, 100%, 0% ); }
+.al-bar.at-44 { clip: rect( 0%, 88%, 100%, 0% ); }
+.al-bar.at-45 { clip: rect( 0%, 90%, 100%, 0% ); }
+.al-bar.at-46 { clip: rect( 0%, 92%, 100%, 0% ); }
+.al-bar.at-47 { clip: rect( 0%, 94%, 100%, 0% ); }
+.al-bar.at-48 { clip: rect( 0%, 96%, 100%, 0% ); }
+.al-bar.at-49 { clip: rect( 0%, 98%, 100%, 0% ); }
+.al-bar.at-50 { clip: rect( 0%, 100%, 100%, 0% ); }
