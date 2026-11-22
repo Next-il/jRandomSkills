@@ -379,10 +379,25 @@ namespace src.utils
             /// <summary>Draw the skill card, spectator line, alerts and Coins line instead of center HTML.</summary>
             public bool Enabled { get; set; } = true;
 
-            /// <summary>"Bottom" (bottom center, between HP and ammo) or "Crosshair" (under it, where the center text was).</summary>
-            public string CardPosition { get; set; } = "Bottom";
+            /// <summary>
+            /// "Right" (bottom right, above CS2's weapons and ammo), "Bottom" (bottom center, between HP and ammo) or
+            /// "Crosshair" (under it, where the center text was).
+            /// </summary>
+            public string CardPosition { get; set; } = "Right";
 
-            /// <summary>"Site" (under the Retakes site panel) or "Card" (above the skill card).</summary>
+            /// <summary>
+            /// Seconds the whole card shows when the skill shows (round start, after the draw, a new skill), before it
+            /// folds to the skill's icon tile. 0 keeps it open all round.
+            /// </summary>
+            public float ExpandedSeconds { get; set; } = 5f;
+
+            /// <summary>
+            /// Seconds a folded card opens again for: off a cooldown of 5s or more, a charge back, "can't use it", or
+            /// switched off by an enemy. 0 never opens it again.
+            /// </summary>
+            public float ReExpandSeconds { get; set; } = 2.5f;
+
+            /// <summary>"Site" (under the Retakes site panel) or "Card" (above the skill card, wherever it is).</summary>
             public string AlertPosition { get; set; } = "Site";
 
             /// <summary>"Always" (all round), or "Fold" (to the name once the description time runs out).</summary>

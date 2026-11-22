@@ -8,10 +8,11 @@
 		Retake Heroes HUD - jRandomSkills' super powers as panels instead of center HTML.
 		The spec is previews/heroes (tabs Skill card, Spectating, Alerts, Coins, Skill colors).
 
-		  hr_card    the skill card, alive. Bottom center (p-bottom) or under the crosshair (p-cross).
-		             Draws the skill at round start, then its state: ready, cooldown, charges, fuel,
-		             toggle, a live value, planting, can't use it, disabled.  (was the center HTML
-		                                                                        every frame)
+		  hr_card    the skill card, alive. Right, above CS2's weapons and ammo (p-right, the default),
+		             bottom center (p-bottom) or under the crosshair (p-cross). Draws the skill at
+		             round start, then its state: ready, cooldown, charges, fuel, toggle, a live value,
+		             planting, can't use it, disabled. After Hud.ExpandedSeconds it folds to the icon
+		             tile ("mini"), which keeps the state.            (was the center HTML every frame)
 		  hr_spec    one line on CS2's spectator bar: the skill of the player you watch, with their
 		             live state.                                               (was "Player's skill"
 		                                                                        center HTML)
@@ -36,21 +37,22 @@
 		  cn_amt cn_why
 
 		CLASSES THE SERVER TOGGLES
-		  hr_card    show hidden | p-bottom p-cross | h-<hue> (14) | k-<kind> (11)
+		  hr_card    show hidden | p-right p-bottom p-cross | h-<hue> (14) | k-<kind> (11)
 		             s-none s-ready s-cool s-on s-charges s-value s-toggle s-err s-draw
-		             off drawing fold track nokey has-pips | land-a land-b
+		             off drawing fold track nokey has-pips kdim t-off mini
+		             at-0..at-50 (the card's bar AND the tile's fill: 2% steps, one fixed 0.3s glide, a
+		             timed run steps every 0.2s) | land-a land-b tap-a tap-b
 		  hs_rar     rar-0..rar-4          hs_team  tm-0 tm-2 tm-3        hs_via  none
-		  hs_key     dim | press-a press-b pop-a pop-b
+		  hs_key     press-a press-b pop-a pop-b
 		  hs_big     v-good v-mid v-bad | pop-a pop-b
-		  hs_tog     t-off | pop-a pop-b
+		  hs_tog     pop-a pop-b
 		  hs_pip0..4 on cut
-		  hs_bar     at-0..at-50 (2% steps; one fixed 0.3s glide, a timed run steps every 0.2s)
-		             | b-good b-mid b-bad b-draw
+		  hs_bar     b-good b-mid b-bad b-draw (its tone; the step is on hr_card)
 		  hr_spec    show hidden | h-<hue> | k-<kind> | track | swap-a swap-b
 		  sp_rar     rar-0..rar-4          sp_via   none                  sp_state  none
 		  sp_big     v-good v-mid v-bad | pop-a pop-b
-		  sp_bar     as hs_bar
-		  hr_alert   show hidden | p-site p-card | c-bottom c-cross | no-num
+		  sp_bar     at-0..at-50 | b-good b-mid b-bad b-draw
+		  hr_alert   show hidden | p-site p-card | c-right c-bottom c-cross | no-num
 		             a-bomb a-hot a-ok a-site a-read a-hit
 		             i-planted i-c4 i-check i-sitea i-siteb i-ghost i-cross
 		  al_chip    none | h-<hue>        al_num   pop-a pop-b           al_bar  at-0..at-50
@@ -63,44 +65,57 @@
 	<Panel class="hud-screen" hittest="false">
 		<Panel id="HeroesRoot" class="hr-root" hittest="false">
 
-			<!-- ======================================================= the skill card -->
-			<Panel id="hr_card" class="hr-slide hs p-bottom s-none k-passive h-white hidden" hittest="false">
-				<Panel class="hs-row" hittest="false">
-					<Panel class="hs-tile" hittest="false">
-						<Panel class="hs-ic" hittest="false" />
-					</Panel>
-					<Panel class="hs-main" hittest="false">
-						<Panel class="hs-top" hittest="false">
-							<Label class="hs-eyebrow" hittest="false" text="{s:hs_eyebrow}" />
-							<Label id="hs_rar" class="hr-chip rar-0" hittest="false" text="{s:hs_rar}" />
-							<Label id="hs_team" class="hr-chip tm-0" hittest="false" text="{s:hs_team}" />
-							<Label id="hs_via" class="hr-chip hr-via none" hittest="false" text="{s:hs_via}" />
+			<!-- ======================================================= the skill card
+			     448x92, layers instead of flow: the plate (background and bar), the cap (the tile's own background
+			     once collapsed), the body (the text) and the tile. "mini" folds the body and the plate into the tile. -->
+			<Panel id="hr_card" class="hr-slide hs p-right s-none k-passive h-white hidden" hittest="false">
+				<Panel class="hs-in" hittest="false">
+					<Panel class="hs-plate" hittest="false">
+						<Panel class="hs-track" hittest="false">
+							<Panel id="hs_bar" class="hr-bar hs-bar" hittest="false" />
 						</Panel>
-						<Label class="hs-name" hittest="false" text="{s:hs_name}" />
-						<Label class="hs-desc" hittest="false" text="{s:hs_desc}" />
-						<Label class="hs-err" hittest="false" text="{s:hs_err}" />
 					</Panel>
-					<Panel class="hs-state" hittest="false">
-						<Panel class="hs-srow" hittest="false">
-							<Label id="hs_key" class="hs-key" hittest="false" text="{s:hs_key}" />
-							<Panel id="hs_big" class="hs-big" hittest="false">
-								<Label class="hs-bign" hittest="false" text="{s:hs_big}" />
-								<Label class="hs-unit" hittest="false" text="{s:hs_unit}" />
+					<Panel class="hs-cap" hittest="false" />
+					<Panel class="hs-body" hittest="false">
+						<Panel class="hs-main" hittest="false">
+							<Panel class="hs-top" hittest="false">
+								<Label class="hs-eyebrow" hittest="false" text="{s:hs_eyebrow}" />
+								<Label id="hs_rar" class="hr-chip rar-0" hittest="false" text="{s:hs_rar}" />
+								<Label id="hs_team" class="hr-chip tm-0" hittest="false" text="{s:hs_team}" />
+								<Label id="hs_via" class="hr-chip hr-via none" hittest="false" text="{s:hs_via}" />
 							</Panel>
-							<Label id="hs_tog" class="hs-tog" hittest="false" text="{s:hs_tog}" />
+							<Label class="hs-name" hittest="false" text="{s:hs_name}" />
+							<Label class="hs-desc" hittest="false" text="{s:hs_desc}" />
+							<Label class="hs-err" hittest="false" text="{s:hs_err}" />
 						</Panel>
-						<Panel class="hs-pips" hittest="false">
-							<Panel id="hs_pip0" class="hs-pip" hittest="false" />
-							<Panel id="hs_pip1" class="hs-pip" hittest="false" />
-							<Panel id="hs_pip2" class="hs-pip" hittest="false" />
-							<Panel id="hs_pip3" class="hs-pip" hittest="false" />
-							<Panel id="hs_pip4" class="hs-pip" hittest="false" />
+						<Panel class="hs-state" hittest="false">
+							<Panel class="hs-srow" hittest="false">
+								<Label id="hs_key" class="hs-key" hittest="false" text="{s:hs_key}" />
+								<Panel id="hs_big" class="hs-big" hittest="false">
+									<Label class="hs-bign" hittest="false" text="{s:hs_big}" />
+									<Label class="hs-unit" hittest="false" text="{s:hs_unit}" />
+								</Panel>
+								<Label id="hs_tog" class="hs-tog" hittest="false" text="{s:hs_tog}" />
+							</Panel>
+							<Panel class="hs-pips" hittest="false">
+								<Panel id="hs_pip0" class="hs-pip" hittest="false" />
+								<Panel id="hs_pip1" class="hs-pip" hittest="false" />
+								<Panel id="hs_pip2" class="hs-pip" hittest="false" />
+								<Panel id="hs_pip3" class="hs-pip" hittest="false" />
+								<Panel id="hs_pip4" class="hs-pip" hittest="false" />
+							</Panel>
+							<Label class="hs-lbl" hittest="false" text="{s:hs_lbl}" />
 						</Panel>
-						<Label class="hs-lbl" hittest="false" text="{s:hs_lbl}" />
 					</Panel>
-				</Panel>
-				<Panel class="hs-track" hittest="false">
-					<Panel id="hs_bar" class="hr-bar" hittest="false" />
+					<!-- The tile, and what it carries once the card is collapsed: the step fill, the seconds or the
+					     count, the key cap when it is ready, ON / OFF. The labels read the same variables as the body. -->
+					<Panel class="hs-tile" hittest="false">
+						<Panel class="hs-tfill" hittest="false" />
+						<Panel class="hs-ic" hittest="false" />
+						<Label class="hs-tval" hittest="false" text="{s:hs_big}" />
+						<Label class="hs-tkey" hittest="false" text="{s:hs_key}" />
+						<Label class="hs-ttog" hittest="false" text="{s:hs_tog}" />
+					</Panel>
 				</Panel>
 			</Panel>
 

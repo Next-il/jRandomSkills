@@ -17,8 +17,17 @@
     (snap to at-N, then dur-* and run-fill / run-drain, or "run" with its own 5s on the alert), which did
     not draw in game: nothing has shown a class-swapped transition-duration working there.
 
+    THE CARD COLLAPSES to its icon tile ("mini") after Hud.ExpandedSeconds, and opens again for a moment when
+    the skill is ready again or cannot be used. The fold moves clip, opacity and transform only (see the
+    card section). The card's bar step sits on hr_card, so the same at-N also fills the collapsed tile.
+
     UNVERIFIED IN GAME, each with a harmless failure:
       - blur in transition-property: if blur does not animate, a panel is simply sharp at once.
+      - transition-delay (the cap taking over from the plate at the end of the fold): without it they
+        cross-fade at the start instead.
+      - box-shadow inset (the ready ring on the collapsed tile): without it the key cap is the ready cue.
+      - world-blur against clip and opacity: guarded, the plate drops it while collapsed and the cap only
+        has it then, so the worst case is the blur switching at once instead of folding.
       - @keyframes (landing pop, key press, number pops, the spectator swap): without them the text just
         changes in place.
       - text-decoration: line-through on a disabled skill: without it the name is only grey.
@@ -79,39 +88,161 @@
 
 /* ------------------------------------------------------------------ the skill card */
 
+/*
+    FIXED SIZE, IN LAYERS. The card is 448x92 and its parts are siblings drawn over each other, not a flow,
+    so nothing in it is sized by a child it sizes: hs-plate (the background, with the bar along its bottom),
+    hs-cap (the tile's own background, shown once the card is collapsed), hs-body (the text) and hs-tile.
+
+    COLLAPSED ("mini", after Hud.ExpandedSeconds). The body fades and slides into the tile while its clip
+    closes toward it, and the plate's clip closes onto the tile's square, 0.25s; then the cap takes over
+    from the plate. Only clip, opacity and transform move, never a width. Taking "mini" off plays it back,
+    a little quicker. The plate drops its world-blur while collapsed and the cap only has one then: if
+    world-blur ignores clip and opacity, there is still never a blurred card-sized box behind a lone tile.
+
+    Right (the default): the tile is on the right and the text folds right into it. Bottom and Crosshair:
+    the tile is on the left, the text folds left, and the tile glides to where the card's center was.
+*/
 .hs {
-    horizontal-align: center;
-    vertical-align: bottom;
-    margin-bottom: 22px;
     width: 448px;
-    flow-children: down;
-    border-top: 2px solid #e8ebee;
-    world-blur: gaussian(8.0);
-    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ec6), to(#0b0f14d0));
+    height: 92px;
+    horizontal-align: right;
+    vertical-align: bottom;
+    /* The cap's right edge lands on the ammo's (26px). The card's bottom is at 708px: above a full
+       loadout with the bomb, under a six-line kill feed. */
+    margin-right: 22px;
+    margin-bottom: 372px;
+    transform: translateX(56px);
+}
+.hs.show { transform: translateX(0px); }
+/* Bottom center, between the HP and the ammo. */
+.hs.p-bottom {
+    horizontal-align: center;
+    margin-right: 0px;
+    margin-bottom: 22px;
     transform: translateY(44px);
 }
-.hs.show { transform: translateY(0px); }
-/* Under the crosshair, where the center text is today. */
+.hs.p-bottom.show { transform: translateY(0px); }
+/* Under the crosshair, where the center text was. */
 .hs.p-cross {
+    horizontal-align: center;
     vertical-align: top;
+    margin-right: 0px;
     margin-bottom: 0px;
     margin-top: 690px;
     transform: translateY(24px);
 }
 .hs.p-cross.show { transform: translateY(0px); }
 
-/* The row holds the padding, so the track below runs the card's full width at its bottom edge. */
-.hs-row {
+/* Moves only on Bottom and Crosshair: the collapsed tile glides to the card's center (33px -> 224px). */
+.hs-in {
     width: 100%;
+    height: 100%;
+    transition-property: transform;
+    transition-duration: 0.22s;
+    transition-timing-function: cubic-bezier( 0.2, 0.8, 0.25, 1.0 );
+}
+.hs.p-bottom.mini .hs-in,
+.hs.p-cross.mini .hs-in {
+    transform: translateX(191px);
+    transition-duration: 0.25s;
+    transition-timing-function: cubic-bezier( 0.5, 0.0, 0.2, 1.0 );
+}
+
+/* The background. Collapsed, its clip closes onto the cap's square (x 386-444, y 16-74), then it fades. */
+.hs-plate {
+    width: 100%;
+    height: 100%;
+    border-top: 2px solid #e8ebee;
+    world-blur: gaussian(8.0);
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ec6), to(#0b0f14d0));
+    clip: rect( 0px, 448px, 92px, 0px );
+    opacity: 1;
+    transition-property: clip, opacity;
+    transition-duration: 0.22s, 0.08s;
+    transition-delay: 0.0s, 0.0s;
+    transition-timing-function: cubic-bezier( 0.2, 0.8, 0.25, 1.0 ), linear;
+}
+.hs.mini .hs-plate {
+    clip: rect( 16px, 444px, 74px, 386px );
+    opacity: 0;
+    world-blur: gaussian(0.0);
+    transition-duration: 0.25s, 0.08s;
+    transition-delay: 0.0s, 0.2s;
+    transition-timing-function: cubic-bezier( 0.5, 0.0, 0.2, 1.0 ), linear;
+}
+.hs.p-bottom.mini .hs-plate,
+.hs.p-cross.mini .hs-plate { clip: rect( 16px, 62px, 74px, 4px ); }
+
+/* The tile's own background once collapsed: 58x58 around the tile, the same fill and top line. */
+.hs-cap {
+    width: 58px;
+    height: 58px;
+    horizontal-align: right;
+    margin-right: 4px;
+    margin-top: 16px;
+    border-top: 2px solid #e8ebee;
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ec6), to(#0b0f14d0));
+    world-blur: gaussian(0.0);
+    opacity: 0;
+    transition-property: opacity;
+    transition-duration: 0.08s;
+    transition-delay: 0.0s;
+    transition-timing-function: linear;
+}
+.hs.mini .hs-cap {
+    opacity: 1;
+    world-blur: gaussian(8.0);
+    transition-delay: 0.18s;
+}
+.hs.p-bottom .hs-cap,
+.hs.p-cross .hs-cap {
+    horizontal-align: left;
+    margin-right: 0px;
+    margin-left: 4px;
+}
+
+/* The text: name and description, then the state block, beside the tile. */
+.hs-body {
+    width: 366px;
+    height: 86px;
+    margin-top: 2px;
+    margin-left: 14px;
     flow-children: right;
-    padding: 10px 14px 9px 10px;
+    clip: rect( 0px, 366px, 86px, 0px );
+    opacity: 1;
+    transform: translateX(0px);
+    transition-property: opacity, transform, clip;
+    transition-duration: 0.18s, 0.22s, 0.22s;
+    transition-timing-function: ease-out, cubic-bezier( 0.2, 0.8, 0.25, 1.0 ), cubic-bezier( 0.2, 0.8, 0.25, 1.0 );
+}
+.hs.mini .hs-body {
+    opacity: 0;
+    transform: translateX(30px);
+    clip: rect( 0px, 366px, 86px, 366px );
+    transition-duration: 0.22s, 0.25s, 0.25s;
+    transition-timing-function: ease-in, cubic-bezier( 0.5, 0.0, 0.2, 1.0 ), cubic-bezier( 0.5, 0.0, 0.2, 1.0 );
+}
+.hs.p-bottom .hs-body,
+.hs.p-cross .hs-body { margin-left: 68px; }
+.hs.p-bottom.mini .hs-body,
+.hs.p-cross.mini .hs-body {
+    transform: translateX(-30px);
+    clip: rect( 0px, 0px, 86px, 0px );
 }
 
 .hs-tile {
     width: 46px;
     height: 46px;
-    vertical-align: center;
+    horizontal-align: right;
+    margin-right: 10px;
+    margin-top: 22px;
     background-color: #e8ebee1f;
+}
+.hs.p-bottom .hs-tile,
+.hs.p-cross .hs-tile {
+    horizontal-align: left;
+    margin-right: 0px;
+    margin-left: 10px;
 }
 .hs-ic {
     width: 26px;
@@ -124,13 +255,15 @@
     /* The icons are SVGs; rasterize at 2x the drawn size so 1440p and 4K stay sharp. */
     background-texture-size: 52px 52px;
     wash-color: #e8ebee;
+    transition-property: opacity;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
 }
 
 .hs-main {
     width: fill-parent-flow(1.0);
     flow-children: down;
     vertical-align: center;
-    margin-left: 12px;
 }
 .hs-top {
     flow-children: right;
@@ -217,7 +350,7 @@
     transition-duration: 0.2s;
     transition-timing-function: ease-out;
 }
-.hs-key.dim { opacity: 0.35; }
+.hs.kdim .hs-key { opacity: 0.35; }
 .hs-big {
     flow-children: right;
     vertical-align: center;
@@ -254,7 +387,7 @@
     color: #0b0e12;
     background-color: #7fd492;
 }
-.hs-tog.t-off { background-color: #ff8270; }
+.hs.t-off .hs-tog { background-color: #ff8270; }
 .hs-pips {
     flow-children: right;
     horizontal-align: right;
@@ -283,14 +416,123 @@
     white-space: nowrap;
 }
 
-/* The bar along the bottom edge. Always in layout so the card keeps its height; shown with "track". */
+/* The bar along the bottom edge, inside the plate so it folds with it. Shown with "track". */
 .hs-track {
     width: 100%;
     height: 3px;
+    vertical-align: bottom;
     background-color: #ffffff0d;
     opacity: 0;
 }
 .hs.track .hs-track { opacity: 1; }
+
+
+/* ------------------------------------------------------------------ the collapsed tile */
+
+/* The same step as the bar (at-N on hr_card), as a fill rising from the tile's bottom. */
+.hs-tfill {
+    width: 100%;
+    height: 100%;
+    background-color: #e8ebee40;
+    clip: rect( 100%, 100%, 100%, 0% );
+    opacity: 0;
+    transition-property: clip, opacity;
+    transition-duration: 0.3s, 0.2s;
+    transition-timing-function: linear, ease-out;
+}
+.hs.mini.track .hs-tfill { opacity: 1; }
+.hs.s-on .hs-tfill { background-color: #7fd49259; }
+
+/* Waiting: the icon dims under the seconds. Can't use it: the icon turns red. */
+.hs.mini.s-cool .hs-ic { opacity: 0.28; }
+.hs.mini.s-on .hs-ic { opacity: 0.45; }
+.hs.mini.s-err .hs-ic { wash-color: #ff8270; }
+/* Switched off by an enemy (s-err too): grey, not red. */
+.hs.mini.off .hs-ic { wash-color: #6c747d; }
+
+/* What the tile says. Each shows for its state, and only once the text has folded away. */
+.hs-tval, .hs-tkey, .hs-ttog {
+    visibility: collapse;
+    opacity: 0;
+    white-space: nowrap;
+    transition-property: opacity;
+    transition-duration: 0.12s;
+    transition-delay: 0.0s;
+    transition-timing-function: ease-out;
+}
+.hs.mini .hs-tval,
+.hs.mini .hs-tkey,
+.hs.mini .hs-ttog {
+    opacity: 1;
+    transition-duration: 0.15s;
+    transition-delay: 0.16s;
+}
+.hs.s-cool .hs-tval,
+.hs.s-on .hs-tval,
+.hs.s-charges .hs-tval,
+.hs.s-value .hs-tval { visibility: visible; }
+.hs.s-ready .hs-tkey,
+.hs.s-err .hs-tkey { visibility: visible; }
+.hs.s-toggle .hs-ttog { visibility: visible; }
+.hs.nokey .hs-tkey,
+.hs.off .hs-tval,
+.hs.off .hs-tkey,
+.hs.off .hs-ttog { visibility: collapse; }
+
+/* Seconds (a cooldown, a skill running out) over the dimmed icon. */
+.hs-tval {
+    horizontal-align: center;
+    vertical-align: center;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 21px;
+    font-weight: bold;
+    line-height: 22px;
+    color: #ffffff;
+    text-shadow: 0px 1px 3px 2.0 #000000c0;
+}
+.hs.s-on .hs-tval { color: #a6f0b6; }
+/* A count or a value is a chip in the corner, so the icon stays readable. */
+.hs.s-charges .hs-tval,
+.hs.s-value .hs-tval {
+    horizontal-align: right;
+    vertical-align: bottom;
+    font-family: Stratum2 Mono;
+    font-size: 9px;
+    line-height: 11px;
+    padding: 1px 3px 0px 3px;
+    color: #e8ebee;
+    background-color: #0b0f14e6;
+    text-shadow: 0px 0px 0px 0.0 #00000000;
+}
+/* Ready: the key cap in the corner. */
+.hs-tkey {
+    horizontal-align: right;
+    vertical-align: bottom;
+    min-width: 14px;
+    height: 14px;
+    padding: 0px 3px;
+    font-family: Stratum2 Mono;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 14px;
+    text-align: center;
+    color: #14181d;
+    background-color: #e8ebee;
+}
+.hs.kdim .hs-tkey { background-color: #8b939c; }
+.hs.s-err .hs-tkey { background-color: #ff8270; }
+.hs-ttog {
+    horizontal-align: right;
+    vertical-align: bottom;
+    padding: 1px 3px 0px 3px;
+    font-family: Stratum2 Mono;
+    font-size: 9px;
+    font-weight: bold;
+    line-height: 11px;
+    color: #0b0e12;
+    background-color: #7fd492;
+}
+.hs.t-off .hs-ttog { background-color: #ff8270; }
 
 
 /* ------------------------------------------------------------------ card states */
@@ -337,7 +579,9 @@
 
 /* ------------------------------------------------------------------ skill colours: 14 classes */
 
-.h-red.hs, .h-red.sp { border-top-color: #ff6b5e; }
+.h-red .hs-plate, .h-red .hs-cap, .h-red.sp { border-top-color: #ff6b5e; }
+.h-red .hs-tfill { background-color: #ff6b5e59; }
+.hs.h-red.mini.s-ready .hs-tile { box-shadow: inset #ff6b5e 0px 0px 0px 2px; }
 .h-red .hs-tile { background-color: #ff6b5e26; }
 .h-red .hs-ic, .h-red .sp-ic { wash-color: #ff6b5e; }
 .h-red .hs-name, .h-red .sp-name { color: #ff6b5e; }
@@ -345,7 +589,9 @@
 .h-red.s-ready .hs-lbl, .h-red.s-charges .hs-lbl { color: #ff6b5e; }
 .h-red .hr-via, .hr-chip.h-red { color: #ff6b5e; background-color: #ff6b5e26; }
 
-.h-orange.hs, .h-orange.sp { border-top-color: #ff9a4a; }
+.h-orange .hs-plate, .h-orange .hs-cap, .h-orange.sp { border-top-color: #ff9a4a; }
+.h-orange .hs-tfill { background-color: #ff9a4a59; }
+.hs.h-orange.mini.s-ready .hs-tile { box-shadow: inset #ff9a4a 0px 0px 0px 2px; }
 .h-orange .hs-tile { background-color: #ff9a4a26; }
 .h-orange .hs-ic, .h-orange .sp-ic { wash-color: #ff9a4a; }
 .h-orange .hs-name, .h-orange .sp-name { color: #ff9a4a; }
@@ -353,7 +599,9 @@
 .h-orange.s-ready .hs-lbl, .h-orange.s-charges .hs-lbl { color: #ff9a4a; }
 .h-orange .hr-via, .hr-chip.h-orange { color: #ff9a4a; background-color: #ff9a4a26; }
 
-.h-amber.hs, .h-amber.sp { border-top-color: #f5c04a; }
+.h-amber .hs-plate, .h-amber .hs-cap, .h-amber.sp { border-top-color: #f5c04a; }
+.h-amber .hs-tfill { background-color: #f5c04a59; }
+.hs.h-amber.mini.s-ready .hs-tile { box-shadow: inset #f5c04a 0px 0px 0px 2px; }
 .h-amber .hs-tile { background-color: #f5c04a26; }
 .h-amber .hs-ic, .h-amber .sp-ic { wash-color: #f5c04a; }
 .h-amber .hs-name, .h-amber .sp-name { color: #f5c04a; }
@@ -361,7 +609,9 @@
 .h-amber.s-ready .hs-lbl, .h-amber.s-charges .hs-lbl { color: #f5c04a; }
 .h-amber .hr-via, .hr-chip.h-amber { color: #f5c04a; background-color: #f5c04a26; }
 
-.h-yellow.hs, .h-yellow.sp { border-top-color: #e6e15a; }
+.h-yellow .hs-plate, .h-yellow .hs-cap, .h-yellow.sp { border-top-color: #e6e15a; }
+.h-yellow .hs-tfill { background-color: #e6e15a59; }
+.hs.h-yellow.mini.s-ready .hs-tile { box-shadow: inset #e6e15a 0px 0px 0px 2px; }
 .h-yellow .hs-tile { background-color: #e6e15a26; }
 .h-yellow .hs-ic, .h-yellow .sp-ic { wash-color: #e6e15a; }
 .h-yellow .hs-name, .h-yellow .sp-name { color: #e6e15a; }
@@ -369,7 +619,9 @@
 .h-yellow.s-ready .hs-lbl, .h-yellow.s-charges .hs-lbl { color: #e6e15a; }
 .h-yellow .hr-via, .hr-chip.h-yellow { color: #e6e15a; background-color: #e6e15a26; }
 
-.h-lime.hs, .h-lime.sp { border-top-color: #a6e05a; }
+.h-lime .hs-plate, .h-lime .hs-cap, .h-lime.sp { border-top-color: #a6e05a; }
+.h-lime .hs-tfill { background-color: #a6e05a59; }
+.hs.h-lime.mini.s-ready .hs-tile { box-shadow: inset #a6e05a 0px 0px 0px 2px; }
 .h-lime .hs-tile { background-color: #a6e05a26; }
 .h-lime .hs-ic, .h-lime .sp-ic { wash-color: #a6e05a; }
 .h-lime .hs-name, .h-lime .sp-name { color: #a6e05a; }
@@ -377,7 +629,9 @@
 .h-lime.s-ready .hs-lbl, .h-lime.s-charges .hs-lbl { color: #a6e05a; }
 .h-lime .hr-via, .hr-chip.h-lime { color: #a6e05a; background-color: #a6e05a26; }
 
-.h-green.hs, .h-green.sp { border-top-color: #5fd77a; }
+.h-green .hs-plate, .h-green .hs-cap, .h-green.sp { border-top-color: #5fd77a; }
+.h-green .hs-tfill { background-color: #5fd77a59; }
+.hs.h-green.mini.s-ready .hs-tile { box-shadow: inset #5fd77a 0px 0px 0px 2px; }
 .h-green .hs-tile { background-color: #5fd77a26; }
 .h-green .hs-ic, .h-green .sp-ic { wash-color: #5fd77a; }
 .h-green .hs-name, .h-green .sp-name { color: #5fd77a; }
@@ -385,7 +639,9 @@
 .h-green.s-ready .hs-lbl, .h-green.s-charges .hs-lbl { color: #5fd77a; }
 .h-green .hr-via, .hr-chip.h-green { color: #5fd77a; background-color: #5fd77a26; }
 
-.h-teal.hs, .h-teal.sp { border-top-color: #3fdcbf; }
+.h-teal .hs-plate, .h-teal .hs-cap, .h-teal.sp { border-top-color: #3fdcbf; }
+.h-teal .hs-tfill { background-color: #3fdcbf59; }
+.hs.h-teal.mini.s-ready .hs-tile { box-shadow: inset #3fdcbf 0px 0px 0px 2px; }
 .h-teal .hs-tile { background-color: #3fdcbf26; }
 .h-teal .hs-ic, .h-teal .sp-ic { wash-color: #3fdcbf; }
 .h-teal .hs-name, .h-teal .sp-name { color: #3fdcbf; }
@@ -393,7 +649,9 @@
 .h-teal.s-ready .hs-lbl, .h-teal.s-charges .hs-lbl { color: #3fdcbf; }
 .h-teal .hr-via, .hr-chip.h-teal { color: #3fdcbf; background-color: #3fdcbf26; }
 
-.h-cyan.hs, .h-cyan.sp { border-top-color: #4fd3f0; }
+.h-cyan .hs-plate, .h-cyan .hs-cap, .h-cyan.sp { border-top-color: #4fd3f0; }
+.h-cyan .hs-tfill { background-color: #4fd3f059; }
+.hs.h-cyan.mini.s-ready .hs-tile { box-shadow: inset #4fd3f0 0px 0px 0px 2px; }
 .h-cyan .hs-tile { background-color: #4fd3f026; }
 .h-cyan .hs-ic, .h-cyan .sp-ic { wash-color: #4fd3f0; }
 .h-cyan .hs-name, .h-cyan .sp-name { color: #4fd3f0; }
@@ -401,7 +659,9 @@
 .h-cyan.s-ready .hs-lbl, .h-cyan.s-charges .hs-lbl { color: #4fd3f0; }
 .h-cyan .hr-via, .hr-chip.h-cyan { color: #4fd3f0; background-color: #4fd3f026; }
 
-.h-blue.hs, .h-blue.sp { border-top-color: #6aa8ff; }
+.h-blue .hs-plate, .h-blue .hs-cap, .h-blue.sp { border-top-color: #6aa8ff; }
+.h-blue .hs-tfill { background-color: #6aa8ff59; }
+.hs.h-blue.mini.s-ready .hs-tile { box-shadow: inset #6aa8ff 0px 0px 0px 2px; }
 .h-blue .hs-tile { background-color: #6aa8ff26; }
 .h-blue .hs-ic, .h-blue .sp-ic { wash-color: #6aa8ff; }
 .h-blue .hs-name, .h-blue .sp-name { color: #6aa8ff; }
@@ -409,7 +669,9 @@
 .h-blue.s-ready .hs-lbl, .h-blue.s-charges .hs-lbl { color: #6aa8ff; }
 .h-blue .hr-via, .hr-chip.h-blue { color: #6aa8ff; background-color: #6aa8ff26; }
 
-.h-indigo.hs, .h-indigo.sp { border-top-color: #8f8cff; }
+.h-indigo .hs-plate, .h-indigo .hs-cap, .h-indigo.sp { border-top-color: #8f8cff; }
+.h-indigo .hs-tfill { background-color: #8f8cff59; }
+.hs.h-indigo.mini.s-ready .hs-tile { box-shadow: inset #8f8cff 0px 0px 0px 2px; }
 .h-indigo .hs-tile { background-color: #8f8cff26; }
 .h-indigo .hs-ic, .h-indigo .sp-ic { wash-color: #8f8cff; }
 .h-indigo .hs-name, .h-indigo .sp-name { color: #8f8cff; }
@@ -417,7 +679,9 @@
 .h-indigo.s-ready .hs-lbl, .h-indigo.s-charges .hs-lbl { color: #8f8cff; }
 .h-indigo .hr-via, .hr-chip.h-indigo { color: #8f8cff; background-color: #8f8cff26; }
 
-.h-violet.hs, .h-violet.sp { border-top-color: #b77cff; }
+.h-violet .hs-plate, .h-violet .hs-cap, .h-violet.sp { border-top-color: #b77cff; }
+.h-violet .hs-tfill { background-color: #b77cff59; }
+.hs.h-violet.mini.s-ready .hs-tile { box-shadow: inset #b77cff 0px 0px 0px 2px; }
 .h-violet .hs-tile { background-color: #b77cff26; }
 .h-violet .hs-ic, .h-violet .sp-ic { wash-color: #b77cff; }
 .h-violet .hs-name, .h-violet .sp-name { color: #b77cff; }
@@ -425,7 +689,9 @@
 .h-violet.s-ready .hs-lbl, .h-violet.s-charges .hs-lbl { color: #b77cff; }
 .h-violet .hr-via, .hr-chip.h-violet { color: #b77cff; background-color: #b77cff26; }
 
-.h-pink.hs, .h-pink.sp { border-top-color: #f27ad6; }
+.h-pink .hs-plate, .h-pink .hs-cap, .h-pink.sp { border-top-color: #f27ad6; }
+.h-pink .hs-tfill { background-color: #f27ad659; }
+.hs.h-pink.mini.s-ready .hs-tile { box-shadow: inset #f27ad6 0px 0px 0px 2px; }
 .h-pink .hs-tile { background-color: #f27ad626; }
 .h-pink .hs-ic, .h-pink .sp-ic { wash-color: #f27ad6; }
 .h-pink .hs-name, .h-pink .sp-name { color: #f27ad6; }
@@ -433,7 +699,9 @@
 .h-pink.s-ready .hs-lbl, .h-pink.s-charges .hs-lbl { color: #f27ad6; }
 .h-pink .hr-via, .hr-chip.h-pink { color: #f27ad6; background-color: #f27ad626; }
 
-.h-white.hs, .h-white.sp { border-top-color: #e8ebee; }
+.h-white .hs-plate, .h-white .hs-cap, .h-white.sp { border-top-color: #e8ebee; }
+.h-white .hs-tfill { background-color: #e8ebee59; }
+.hs.h-white.mini.s-ready .hs-tile { box-shadow: inset #e8ebee 0px 0px 0px 2px; }
 .h-white .hs-tile { background-color: #e8ebee1f; }
 .h-white .hs-ic, .h-white .sp-ic { wash-color: #e8ebee; }
 .h-white .hs-name, .h-white .sp-name { color: #e8ebee; }
@@ -441,7 +709,9 @@
 .h-white.s-ready .hs-lbl, .h-white.s-charges .hs-lbl { color: #e8ebee; }
 .h-white .hr-via, .hr-chip.h-white { color: #e8ebee; background-color: #e8ebee1f; }
 
-.h-grey.hs, .h-grey.sp { border-top-color: #a9b1ba; }
+.h-grey .hs-plate, .h-grey .hs-cap, .h-grey.sp { border-top-color: #a9b1ba; }
+.h-grey .hs-tfill { background-color: #a9b1ba59; }
+.hs.h-grey.mini.s-ready .hs-tile { box-shadow: inset #a9b1ba 0px 0px 0px 2px; }
 .h-grey .hs-tile { background-color: #a9b1ba1f; }
 .h-grey .hs-ic, .h-grey .sp-ic { wash-color: #a9b1ba; }
 .h-grey .hs-name, .h-grey .sp-name { color: #a9b1ba; }
@@ -456,7 +726,7 @@
 .hr-bar.b-draw { background-color: #e8ebee8c; }
 
 /* Disabled by an enemy (Deactivator, Thief): grey, struck through, after the hues so it wins. */
-.hs.off { border-top-color: #6c747d; }
+.hs.off .hs-plate, .hs.off .hs-cap { border-top-color: #6c747d; }
 .hs.off .hs-tile { background-color: #ffffff0a; }
 .hs.off .hs-ic { wash-color: #6c747d; }
 .hs.off .hs-name { color: #6c747d; text-decoration: line-through; }
@@ -538,6 +808,28 @@
 .pop-b {
     animation-name: hr-pop-b;
     animation-duration: 0.4s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+
+/* Used while collapsed: the tile itself is pressed. */
+@keyframes 'hs-tap-a' {
+    0%   { transform: scale3d(0.82, 0.82, 1.0); brightness: 1.8; }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+@keyframes 'hs-tap-b' {
+    0%   { transform: scale3d(0.82, 0.82, 1.0); brightness: 1.8; }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+.hs.tap-a .hs-tile {
+    animation-name: hs-tap-a;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+.hs.tap-b .hs-tile {
+    animation-name: hs-tap-b;
+    animation-duration: 0.3s;
     animation-timing-function: ease-out;
     animation-iteration-count: 1;
 }
@@ -698,13 +990,19 @@
 .al.p-card {
     vertical-align: bottom;
     margin-top: 0px;
-    margin-bottom: 116px;
+    margin-bottom: 126px;
     transform: translateY(26px);
 }
 .al.p-card.c-cross {
     vertical-align: top;
     margin-top: 612px;
     margin-bottom: 0px;
+}
+/* The card on the right: the banner sits over it, right-aligned with it. */
+.al.p-card.c-right {
+    horizontal-align: right;
+    margin-right: 22px;
+    margin-bottom: 474px;
 }
 .al.p-card.show { transform: translateY(0px); }
 
@@ -913,7 +1211,7 @@
     transition-timing-function: linear;
 }
 
-/* Where it is, in 2% steps. */
+/* Where it is, in 2% steps (the spectator line). */
 .hr-bar.at-0 { clip: rect( 0%, 0%, 100%, 0% ); }
 .hr-bar.at-1 { clip: rect( 0%, 2%, 100%, 0% ); }
 .hr-bar.at-2 { clip: rect( 0%, 4%, 100%, 0% ); }
@@ -965,6 +1263,111 @@
 .hr-bar.at-48 { clip: rect( 0%, 96%, 100%, 0% ); }
 .hr-bar.at-49 { clip: rect( 0%, 98%, 100%, 0% ); }
 .hr-bar.at-50 { clip: rect( 0%, 100%, 100%, 0% ); }
+
+/* The card's step is on hr_card, so one class moves both its bar and the collapsed tile's fill (rising
+   from the bottom). The spectator line keeps its step on sp_bar. */
+.hs.at-0 .hs-bar { clip: rect( 0%, 0%, 100%, 0% ); }
+.hs.at-1 .hs-bar { clip: rect( 0%, 2%, 100%, 0% ); }
+.hs.at-2 .hs-bar { clip: rect( 0%, 4%, 100%, 0% ); }
+.hs.at-3 .hs-bar { clip: rect( 0%, 6%, 100%, 0% ); }
+.hs.at-4 .hs-bar { clip: rect( 0%, 8%, 100%, 0% ); }
+.hs.at-5 .hs-bar { clip: rect( 0%, 10%, 100%, 0% ); }
+.hs.at-6 .hs-bar { clip: rect( 0%, 12%, 100%, 0% ); }
+.hs.at-7 .hs-bar { clip: rect( 0%, 14%, 100%, 0% ); }
+.hs.at-8 .hs-bar { clip: rect( 0%, 16%, 100%, 0% ); }
+.hs.at-9 .hs-bar { clip: rect( 0%, 18%, 100%, 0% ); }
+.hs.at-10 .hs-bar { clip: rect( 0%, 20%, 100%, 0% ); }
+.hs.at-11 .hs-bar { clip: rect( 0%, 22%, 100%, 0% ); }
+.hs.at-12 .hs-bar { clip: rect( 0%, 24%, 100%, 0% ); }
+.hs.at-13 .hs-bar { clip: rect( 0%, 26%, 100%, 0% ); }
+.hs.at-14 .hs-bar { clip: rect( 0%, 28%, 100%, 0% ); }
+.hs.at-15 .hs-bar { clip: rect( 0%, 30%, 100%, 0% ); }
+.hs.at-16 .hs-bar { clip: rect( 0%, 32%, 100%, 0% ); }
+.hs.at-17 .hs-bar { clip: rect( 0%, 34%, 100%, 0% ); }
+.hs.at-18 .hs-bar { clip: rect( 0%, 36%, 100%, 0% ); }
+.hs.at-19 .hs-bar { clip: rect( 0%, 38%, 100%, 0% ); }
+.hs.at-20 .hs-bar { clip: rect( 0%, 40%, 100%, 0% ); }
+.hs.at-21 .hs-bar { clip: rect( 0%, 42%, 100%, 0% ); }
+.hs.at-22 .hs-bar { clip: rect( 0%, 44%, 100%, 0% ); }
+.hs.at-23 .hs-bar { clip: rect( 0%, 46%, 100%, 0% ); }
+.hs.at-24 .hs-bar { clip: rect( 0%, 48%, 100%, 0% ); }
+.hs.at-25 .hs-bar { clip: rect( 0%, 50%, 100%, 0% ); }
+.hs.at-26 .hs-bar { clip: rect( 0%, 52%, 100%, 0% ); }
+.hs.at-27 .hs-bar { clip: rect( 0%, 54%, 100%, 0% ); }
+.hs.at-28 .hs-bar { clip: rect( 0%, 56%, 100%, 0% ); }
+.hs.at-29 .hs-bar { clip: rect( 0%, 58%, 100%, 0% ); }
+.hs.at-30 .hs-bar { clip: rect( 0%, 60%, 100%, 0% ); }
+.hs.at-31 .hs-bar { clip: rect( 0%, 62%, 100%, 0% ); }
+.hs.at-32 .hs-bar { clip: rect( 0%, 64%, 100%, 0% ); }
+.hs.at-33 .hs-bar { clip: rect( 0%, 66%, 100%, 0% ); }
+.hs.at-34 .hs-bar { clip: rect( 0%, 68%, 100%, 0% ); }
+.hs.at-35 .hs-bar { clip: rect( 0%, 70%, 100%, 0% ); }
+.hs.at-36 .hs-bar { clip: rect( 0%, 72%, 100%, 0% ); }
+.hs.at-37 .hs-bar { clip: rect( 0%, 74%, 100%, 0% ); }
+.hs.at-38 .hs-bar { clip: rect( 0%, 76%, 100%, 0% ); }
+.hs.at-39 .hs-bar { clip: rect( 0%, 78%, 100%, 0% ); }
+.hs.at-40 .hs-bar { clip: rect( 0%, 80%, 100%, 0% ); }
+.hs.at-41 .hs-bar { clip: rect( 0%, 82%, 100%, 0% ); }
+.hs.at-42 .hs-bar { clip: rect( 0%, 84%, 100%, 0% ); }
+.hs.at-43 .hs-bar { clip: rect( 0%, 86%, 100%, 0% ); }
+.hs.at-44 .hs-bar { clip: rect( 0%, 88%, 100%, 0% ); }
+.hs.at-45 .hs-bar { clip: rect( 0%, 90%, 100%, 0% ); }
+.hs.at-46 .hs-bar { clip: rect( 0%, 92%, 100%, 0% ); }
+.hs.at-47 .hs-bar { clip: rect( 0%, 94%, 100%, 0% ); }
+.hs.at-48 .hs-bar { clip: rect( 0%, 96%, 100%, 0% ); }
+.hs.at-49 .hs-bar { clip: rect( 0%, 98%, 100%, 0% ); }
+.hs.at-50 .hs-bar { clip: rect( 0%, 100%, 100%, 0% ); }
+.hs.at-0 .hs-tfill { clip: rect( 100%, 100%, 100%, 0% ); }
+.hs.at-1 .hs-tfill { clip: rect( 98%, 100%, 100%, 0% ); }
+.hs.at-2 .hs-tfill { clip: rect( 96%, 100%, 100%, 0% ); }
+.hs.at-3 .hs-tfill { clip: rect( 94%, 100%, 100%, 0% ); }
+.hs.at-4 .hs-tfill { clip: rect( 92%, 100%, 100%, 0% ); }
+.hs.at-5 .hs-tfill { clip: rect( 90%, 100%, 100%, 0% ); }
+.hs.at-6 .hs-tfill { clip: rect( 88%, 100%, 100%, 0% ); }
+.hs.at-7 .hs-tfill { clip: rect( 86%, 100%, 100%, 0% ); }
+.hs.at-8 .hs-tfill { clip: rect( 84%, 100%, 100%, 0% ); }
+.hs.at-9 .hs-tfill { clip: rect( 82%, 100%, 100%, 0% ); }
+.hs.at-10 .hs-tfill { clip: rect( 80%, 100%, 100%, 0% ); }
+.hs.at-11 .hs-tfill { clip: rect( 78%, 100%, 100%, 0% ); }
+.hs.at-12 .hs-tfill { clip: rect( 76%, 100%, 100%, 0% ); }
+.hs.at-13 .hs-tfill { clip: rect( 74%, 100%, 100%, 0% ); }
+.hs.at-14 .hs-tfill { clip: rect( 72%, 100%, 100%, 0% ); }
+.hs.at-15 .hs-tfill { clip: rect( 70%, 100%, 100%, 0% ); }
+.hs.at-16 .hs-tfill { clip: rect( 68%, 100%, 100%, 0% ); }
+.hs.at-17 .hs-tfill { clip: rect( 66%, 100%, 100%, 0% ); }
+.hs.at-18 .hs-tfill { clip: rect( 64%, 100%, 100%, 0% ); }
+.hs.at-19 .hs-tfill { clip: rect( 62%, 100%, 100%, 0% ); }
+.hs.at-20 .hs-tfill { clip: rect( 60%, 100%, 100%, 0% ); }
+.hs.at-21 .hs-tfill { clip: rect( 58%, 100%, 100%, 0% ); }
+.hs.at-22 .hs-tfill { clip: rect( 56%, 100%, 100%, 0% ); }
+.hs.at-23 .hs-tfill { clip: rect( 54%, 100%, 100%, 0% ); }
+.hs.at-24 .hs-tfill { clip: rect( 52%, 100%, 100%, 0% ); }
+.hs.at-25 .hs-tfill { clip: rect( 50%, 100%, 100%, 0% ); }
+.hs.at-26 .hs-tfill { clip: rect( 48%, 100%, 100%, 0% ); }
+.hs.at-27 .hs-tfill { clip: rect( 46%, 100%, 100%, 0% ); }
+.hs.at-28 .hs-tfill { clip: rect( 44%, 100%, 100%, 0% ); }
+.hs.at-29 .hs-tfill { clip: rect( 42%, 100%, 100%, 0% ); }
+.hs.at-30 .hs-tfill { clip: rect( 40%, 100%, 100%, 0% ); }
+.hs.at-31 .hs-tfill { clip: rect( 38%, 100%, 100%, 0% ); }
+.hs.at-32 .hs-tfill { clip: rect( 36%, 100%, 100%, 0% ); }
+.hs.at-33 .hs-tfill { clip: rect( 34%, 100%, 100%, 0% ); }
+.hs.at-34 .hs-tfill { clip: rect( 32%, 100%, 100%, 0% ); }
+.hs.at-35 .hs-tfill { clip: rect( 30%, 100%, 100%, 0% ); }
+.hs.at-36 .hs-tfill { clip: rect( 28%, 100%, 100%, 0% ); }
+.hs.at-37 .hs-tfill { clip: rect( 26%, 100%, 100%, 0% ); }
+.hs.at-38 .hs-tfill { clip: rect( 24%, 100%, 100%, 0% ); }
+.hs.at-39 .hs-tfill { clip: rect( 22%, 100%, 100%, 0% ); }
+.hs.at-40 .hs-tfill { clip: rect( 20%, 100%, 100%, 0% ); }
+.hs.at-41 .hs-tfill { clip: rect( 18%, 100%, 100%, 0% ); }
+.hs.at-42 .hs-tfill { clip: rect( 16%, 100%, 100%, 0% ); }
+.hs.at-43 .hs-tfill { clip: rect( 14%, 100%, 100%, 0% ); }
+.hs.at-44 .hs-tfill { clip: rect( 12%, 100%, 100%, 0% ); }
+.hs.at-45 .hs-tfill { clip: rect( 10%, 100%, 100%, 0% ); }
+.hs.at-46 .hs-tfill { clip: rect( 8%, 100%, 100%, 0% ); }
+.hs.at-47 .hs-tfill { clip: rect( 6%, 100%, 100%, 0% ); }
+.hs.at-48 .hs-tfill { clip: rect( 4%, 100%, 100%, 0% ); }
+.hs.at-49 .hs-tfill { clip: rect( 2%, 100%, 100%, 0% ); }
+.hs.at-50 .hs-tfill { clip: rect( 0%, 100%, 100%, 0% ); }
 
 /* The alert bar, the same steps: at-50 full (also its default), at-0 empty. */
 .al-bar.at-0 { clip: rect( 0%, 0%, 100%, 0% ); }

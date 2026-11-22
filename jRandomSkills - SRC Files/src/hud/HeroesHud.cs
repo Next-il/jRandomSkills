@@ -31,7 +31,13 @@ namespace src.utils
     /// (cooldowns, the draw, planting, the alert) gets the step for where it will be one glide from now, every
     /// <see cref="BarEvery"/>. That replaced runs as one long transition (snap, then a dur-* class and run-fill /
     /// run-drain 0.35s later), which did not draw in game: nothing has shown a class-swapped transition-duration
-    /// working there.</para>
+    /// working there. The card's step goes on the card itself, so the same class also fills the folded tile.</para>
+    ///
+    /// <para><b>The card folds to its icon tile.</b> It is open for Hud.ExpandedSeconds when the skill shows (round
+    /// start, after the draw, a new skill, the card coming back), then "mini" folds the text into the tile, which keeps
+    /// the state: the step fill, the seconds, the count, the key cap when ready, ON / OFF. It opens again for
+    /// Hud.ReExpandSeconds off a cooldown of <see cref="MinReExpandCooldown"/>s or more, on a charge back, on "can't use
+    /// it" and when an enemy switches the skill off. The spectator line does not fold.</para>
     /// </summary>
     internal static class HeroesHud
     {
@@ -62,8 +68,12 @@ namespace src.utils
         /// between steps; the HUD frame is every 4 ticks.</summary>
         private static readonly TimeSpan BarEvery = TimeSpan.FromSeconds(0.2);
 
-        /// <summary>The bars, for the scrub on a redraw.</summary>
-        private static readonly string[] BarIds = ["hs_bar", "sp_bar", "al_bar"];
+        /// <summary>Where the bar steps (at-N) go, for the scrub on a redraw. The card's sit on the card itself: one class
+        /// moves its bar and, once it is folded, the icon tile's fill.</summary>
+        private static readonly string[] BarIds = [CardId, "sp_bar", "al_bar"];
+
+        /// <summary>A cooldown shorter than this comes back without opening a folded card (Dash, Fortnite, Flashlight: 2s).</summary>
+        private const double MinReExpandCooldown = 5.0;
 
         private const double AlertSeconds = 5.0;
         private const double CoinSeconds = 2.6;
@@ -249,6 +259,14 @@ namespace src.utils
         private static bool Cross => string.Equals(Settings.CardPosition, "Crosshair", StringComparison.OrdinalIgnoreCase)
             || string.Equals(Settings.CardPosition, "Cross", StringComparison.OrdinalIgnoreCase);
 
+        private static bool BottomCenter => string.Equals(Settings.CardPosition, "Bottom", StringComparison.OrdinalIgnoreCase);
+
+        /// <summary>The card's place: "Right" and anything unknown are the right side, above the weapons.</summary>
+        private static string CardPlace => Cross ? "p-cross" : BottomCenter ? "p-bottom" : "p-right";
+
+        /// <summary>Where an alert with AlertPosition = Card goes: over the card, wherever the card is.</summary>
+        private static string AlertNextToCard => Cross ? "c-cross" : BottomCenter ? "c-bottom" : "c-right";
+
         // ------------------------------------------------------------------ the frame
 
         /// <summary>One HUD frame for one player (PlayerOnTick, every 4 ticks), after <see cref="Draws"/> said yes.</summary>
@@ -278,7 +296,7 @@ namespace src.utils
             Drive(player, v, CardId, v.CardSlot, card, now);
             Drive(player, v, SpecId, v.SpecSlot, spec, now);
 
-            if (v.CardSlot.Collapsed) ParkBar(player, v, "hs_bar", v.CardBar);
+            if (v.CardSlot.Collapsed) ParkBar(player, v, CardId, v.CardBar);
             if (v.SpecSlot.Collapsed) ParkBar(player, v, "sp_bar", v.SpecBar);
             if (!v.CardSlot.Shown) v.LastWasDrawing = false;
 
@@ -295,7 +313,7 @@ namespace src.utils
             // A WASD menu is center HTML, right where the card sits under the crosshair.
             if (cross && SkillUtils.HasMenu(p)) return false;
 
-            One(p, v, CardId, "pos", cross ? "p-cross" : "p-bottom");
+            One(p, v, CardId, "pos", CardPlace);
 
             if (info.IsDrawing)
             {
@@ -335,6 +353,24 @@ namespace src.utils
                 err = Illiterate.GetRandomText(err) ?? err;
             }
 
+            // What changed since the last frame. A new skill (or the draw landing, or the card coming back) is "fresh".
+            bool fresh = v.CardSlot.Collapsed || skill != v.LastSkill || v.LastWasDrawing;
+            bool same = !fresh && !off;
+            bool pressed = same && v.LastState == HudState.Ready && m.State is HudState.Cooldown or HudState.Active or HudState.Busy or HudState.Progress or HudState.Error;
+            bool used = same && m.Count >= 0 && v.LastCount >= 0 && m.Count < v.LastCount;
+            bool refill = same && m.Count >= 0 && v.LastCount >= 0 && m.Count > v.LastCount;
+            bool cooled = same && v.LastState == HudState.Cooldown && m.State is HudState.Ready or HudState.Auto or HudState.Value;
+            bool cantUse = same && m.State == HudState.Error && v.LastState != HudState.Error;
+            bool lost = !fresh && off && !v.LastOff;
+
+            // Open for Hud.ExpandedSeconds when the skill shows, then fold to the icon tile ("mini"). It opens again for
+            // Hud.ReExpandSeconds when the skill is ready again, gets a charge back, can't be used, or is switched off.
+            if (fresh)
+                Expand(v, now, Settings.ExpandedSeconds);
+            else if ((cooled && v.LastCooldown >= MinReExpandCooldown) || refill || cantUse || lost)
+                Expand(v, now, Settings.ReExpandSeconds);
+            bool mini = Settings.ExpandedSeconds > 0 && now >= v.ExpandUntil;
+
             One(p, v, CardId, "h", SkillCatalog.HueClass(SkillCatalog.ColorOf(skill)));
             One(p, v, CardId, "k", SkillCatalog.KindClass(kind));
             One(p, v, CardId, "s", m.Cls);
@@ -344,6 +380,9 @@ namespace src.utils
             Cls(p, v, CardId, "track", m.Bar.Mode != BarMode.None && !off);
             Cls(p, v, CardId, "nokey", !showKey);
             Cls(p, v, CardId, "has-pips", m.PipsOnly);
+            Cls(p, v, CardId, "kdim", m.KeyDim);
+            Cls(p, v, CardId, "t-off", m.TogOff);
+            Cls(p, v, CardId, "mini", mini);
 
             Var(p, v, "hs_eyebrow", T(p, "hud_your_skill", "Your skill"));
             Var(p, v, "hs_name", name);
@@ -352,28 +391,27 @@ namespace src.utils
             Chips(p, v, "hs_rar", "hs_team", "hs_via", skill, via);
 
             Var(p, v, "hs_key", key);
-            Cls(p, v, "hs_key", "dim", m.KeyDim);
             Var(p, v, "hs_big", m.Big);
             Var(p, v, "hs_unit", m.Unit);
             One(p, v, "hs_big", "v", m.Tone);
             Var(p, v, "hs_tog", m.Tog);
-            Cls(p, v, "hs_tog", "t-off", m.TogOff);
             Var(p, v, "hs_lbl", m.Label);
             Pips(p, v, m.PipsOn, m.PipsMax);
-            DriveBar(p, v, "hs_bar", v.CardBar, off ? BarSpec.None : m.Bar, now);
+            DriveBar(p, v, CardId, "hs_bar", v.CardBar, off ? BarSpec.None : m.Bar, now);
 
             // Motion, only on a card already on screen: its entry is the slide.
             if (v.CardSlot.Shown)
             {
-                if (skill != v.LastSkill || v.LastWasDrawing)
+                if (fresh)
                     Kick(p, v, CardId, "land");
                 else if (!off)
                 {
-                    bool pressed = v.LastState == HudState.Ready && m.State is HudState.Cooldown or HudState.Active or HudState.Busy or HudState.Progress or HudState.Error;
-                    bool used = m.Count >= 0 && v.LastCount >= 0 && m.Count < v.LastCount;
-
+                    // Folded, the tile is what gets pressed
                     if (showKey && (pressed || used))
-                        Kick(p, v, "hs_key", "press");
+                    {
+                        if (mini) Kick(p, v, CardId, "tap");
+                        else Kick(p, v, "hs_key", "press");
+                    }
                     else if (showKey && v.LastState == HudState.Cooldown && m.State == HudState.Ready)
                         Kick(p, v, "hs_key", "pop");
 
@@ -390,7 +428,17 @@ namespace src.utils
             v.LastState = off ? HudState.Auto : m.State;
             v.LastCount = m.Count;
             v.LastToggle = m.ToggleOn;
+            v.LastOff = off;
+            if (m.State == HudState.Cooldown) v.LastCooldown = m.Seconds;
             return true;
+        }
+
+        /// <summary>Keeps the card open until at least <paramref name="seconds"/> from now. 0 or less does nothing.</summary>
+        private static void Expand(View v, DateTime now, float seconds)
+        {
+            if (seconds <= 0) return;
+            var until = now.AddSeconds(seconds);
+            if (until > v.ExpandUntil) v.ExpandUntil = until;
         }
 
         /// <summary>The draw: names roll about ten a second and slow down until the skill lands.</summary>
@@ -430,6 +478,10 @@ namespace src.utils
             Cls(p, v, CardId, "track", timed);
             Cls(p, v, CardId, "nokey", true);
             Cls(p, v, CardId, "has-pips", false);
+            Cls(p, v, CardId, "kdim", false);
+            Cls(p, v, CardId, "t-off", false);
+            // The draw is the show: open the whole time, and the skill it lands on opens for Hud.ExpandedSeconds
+            Cls(p, v, CardId, "mini", false);
 
             Var(p, v, "hs_eyebrow", T(p, "hud_drawing", "Drawing a skill"));
             Var(p, v, "hs_name", name);
@@ -439,12 +491,13 @@ namespace src.utils
             Var(p, v, "hs_unit", timed ? "s" : "");
             One(p, v, "hs_big", "v", null);
             Var(p, v, "hs_lbl", T(p, "hud_drawing_lbl", "Drawing"));
-            DriveBar(p, v, "hs_bar", v.CardBar, timed ? BarSpec.Run(start, end, true, "b-draw") : BarSpec.None, now);
+            DriveBar(p, v, CardId, "hs_bar", v.CardBar, timed ? BarSpec.Run(start, end, true, "b-draw") : BarSpec.None, now);
 
             v.LastWasDrawing = true;
             v.LastSkill = Skills.None;
             v.LastState = HudState.Auto;
             v.LastCount = -1;
+            v.LastOff = false;
         }
 
         /// <summary>
@@ -512,6 +565,8 @@ namespace src.utils
             public string? Tone;
             public bool KeyDim, TogOff, ToggleOn, PipsOnly;
             public int PipsOn, PipsMax, Count = -1;
+            /// <summary>A cooldown's whole length.</summary>
+            public double Seconds;
             public BarSpec Bar = BarSpec.None;
         }
 
@@ -529,6 +584,7 @@ namespace src.utils
                     if (left <= 0) goto case HudState.Ready;
                     m.State = state;
                     m.Cls = "s-cool";
+                    m.Seconds = h.Seconds;
                     m.Big = Ceil(left);
                     m.Unit = "s";
                     m.Label = T(viewer, "hud_cooldown", "Cooldown");
@@ -773,7 +829,7 @@ namespace src.utils
             Var(p, v, "sp_big", big);
             Var(p, v, "sp_lbl", label);
             One(p, v, "sp_big", "v", tone);
-            DriveBar(p, v, "sp_bar", v.SpecBar, bar, now);
+            DriveBar(p, v, "sp_bar", "sp_bar", v.SpecBar, bar, now);
             return true;
         }
 
@@ -912,7 +968,7 @@ namespace src.utils
             var slot = v.AlertSlot;
             bool site = !string.Equals(Settings.AlertPosition, "Card", StringComparison.OrdinalIgnoreCase);
             One(p, v, AlertId, "pos", site ? "p-site" : "p-card");
-            One(p, v, AlertId, "c", Cross ? "c-cross" : "c-bottom");
+            One(p, v, AlertId, "c", AlertNextToCard);
 
             // A new alert comes up once the last one has left and its bar has glided back to full
             if (v.AlertPending != null && v.AlertShown == null && slot.Collapsed && now - v.AlertBarResetAt >= BarWait)
@@ -1132,9 +1188,13 @@ namespace src.utils
             One(p, v, "al_bar", "at", step >= BarSteps ? null : $"at-{step}");
         }
 
-        private static void DriveBar(CCSPlayerController p, View v, string id, BarView b, BarSpec spec, DateTime now)
+        /// <summary>
+        /// One bar's frame. <paramref name="id"/> carries the step (at-N), <paramref name="toneId"/> the colour: the same
+        /// panel for the spectator line, the card itself and its bar for the card (the step also fills the folded tile).
+        /// </summary>
+        private static void DriveBar(CCSPlayerController p, View v, string id, string toneId, BarView b, BarSpec spec, DateTime now)
         {
-            One(p, v, id, "tone", spec.Tone);
+            One(p, v, toneId, "tone", spec.Tone);
 
             switch (spec.Mode)
             {
@@ -1192,7 +1252,7 @@ namespace src.utils
             public readonly Dictionary<(string Id, string Group), string?> Groups = new()
             {
                 // The classes the layout is authored with: a rebuilt panel has these again
-                [(CardId, "pos")] = "p-bottom",
+                [(CardId, "pos")] = "p-right",
                 [(CardId, "s")] = "s-none",
                 [(CardId, "k")] = "k-passive",
                 [(CardId, "h")] = "h-white",
@@ -1230,6 +1290,12 @@ namespace src.utils
             public HudState LastState = HudState.Auto;
             public int LastCount = -1;
             public bool LastToggle;
+            public bool LastOff;
+            /// <summary>The length of the last cooldown drawn: only a long one opens a folded card when it ends.</summary>
+            public double LastCooldown;
+
+            /// <summary>The card is open until then, folded to its tile after (Hud.ExpandedSeconds, Hud.ReExpandSeconds).</summary>
+            public DateTime ExpandUntil = DateTime.MinValue;
 
             // the draw
             public DateTime NextRollAt;
