@@ -77,6 +77,8 @@ namespace src.player.skills
             playerInfo.PrintHTML = cooldown != 0
                 ? $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}"
                 : null;
+
+            SkillHud.Cooldown(playerInfo, skillInfo.Cooldown, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public static void UseSkill(CCSPlayerController player)

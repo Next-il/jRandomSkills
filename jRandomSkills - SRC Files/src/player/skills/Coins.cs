@@ -166,11 +166,12 @@ namespace src.player.skills
             if (money == null) return;
 
             int maxMoney = SkillUtils.CvarValue("mp_maxmoney", 16000);
+            int before = money.Account;
             money.Account = Math.Min(money.Account + value, Math.Max(maxMoney, money.Account));
             Utilities.SetStateChanged(collector, "CCSPlayerController", "m_pInGameMoneyServices");
 
             SkillUtils.EmitSoundToPlayer(collector, pickupSound, SkillsInfo.GetValue<float>(skillName, "soundVolume"));
-            collector.PrintToCenter($"+${value}");
+            SkillHud.Coin(collector, money.Account - before, value, money.Account);
         }
 
         public class SkillConfig(Skills skill = skillName, bool active = true, string color = "#f2c94c", CsTeam onlyTeam = CsTeam.None, bool disableOnFreezeTime = false, bool needsTeammates = false, string requiredPermission = "", float? hudDuration = null, float? descriptionHudDuration = null, int maxPerServer = -1, Rarity rarity = Rarity.Common, float multiplier = 1f, int coinValue = 100, int maxCoins = 10, float launchSpeed = 220f, float pickupRadius = 56f, float lifetime = 30f, float soundVolume = .7f) : SkillsInfo.DefaultSkillInfo(skill, active, color, onlyTeam, disableOnFreezeTime, needsTeammates, requiredPermission, hudDuration, descriptionHudDuration, maxPerServer, rarity)

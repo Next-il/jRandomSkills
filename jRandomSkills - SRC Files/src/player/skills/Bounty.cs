@@ -122,7 +122,7 @@ namespace src.player.skills
 
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent != null && enemyEvent.IsValid)
-                enemyEvent.PrintToChat($" {ChatColors.Red}{enemyEvent.GetTranslation("bounty_enemy_info", reward)}");
+                SkillHud.EnemySkill(enemyEvent, skillName, "bounty_enemy_info", [reward]);
         }
 
         public static void PlayerDeath(EventPlayerDeath @event)

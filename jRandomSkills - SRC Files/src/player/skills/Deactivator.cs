@@ -137,7 +137,7 @@ namespace src.player.skills
                 var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
                 if (enemyEvent == null || !enemyEvent.IsValid) return;
 
-                enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("deactivator_enemy_info"));
+                SkillHud.EnemySkill(enemyEvent, skillName, "deactivator_enemy_info", lostFrom: enemyInfo);
             }
         }
 

@@ -12,6 +12,40 @@
 > [!NOTE]
 > This repository is a fork of the [project](https://github.com/jakubbartosik/dRandomSkills) created by [Jakub Bartosik (D3X)](https://github.com/jakubbartosik).
 
+## HUD (Next fork)
+The skill card, the spectator line, the center alerts and the Coins pickup are Panorama panels instead of center HTML
+(`src/hud`, layout `hud/panorama/layout/custom_game/heroes_hud.xml` with `heroes_hud.css` and `hud_shared.css`). The layout
+has to be in the workshop addon the clients mount; without it the panels are invisible, so ship the addon first or set
+`Hud.Enabled` to false, which brings the center HTML, the center alerts and the chat lines back exactly as they were.
+
+- **Skill card**, bottom center while alive: the draw at round start, then the skill's state (ready, cooldown, charges,
+  fuel, toggle, a live value, planting, can't use it, disabled by an enemy) with a key chip and a bar. It no longer
+  steps aside when another plugin sends center HTML; the WASD pick-a-player menus are still center HTML and still do.
+- **Spectating**: one line on CS2's spectator bar with the watched player's skill and its live state.
+- **Alerts**: one banner for 5 seconds (bomb planted with Free Planter or Short Fuse, hot bomb, site closed, Illiterate,
+  and an enemy skill used on you instead of the red chat line).
+- **Coins**: the pickup next to the money; pickups within 2 seconds add up.
+
+Every key is optional - a config file without `Hud` gets these defaults, and the plugin never rewrites the file for it:
+
+```json
+"Hud": {
+  "Enabled": true,
+  "CardPosition": "Bottom",
+  "AlertPosition": "Site",
+  "Description": "Always",
+  "CoinsPosition": "Under",
+  "KeyLabel": "",
+  "EnemySkillAlerts": true,
+  "SkillChatLine": false
+}
+```
+
+`CardPosition` Bottom or Crosshair; `AlertPosition` Site (under the Retakes site panel) or Card (above the skill card);
+`Description` Always or Fold (after the description time); `CoinsPosition` Under or Beside the money; `KeyLabel` the key
+chip, empty for `AlternativeSkillButton`; `SkillChatLine` keeps the round's skill chat line the card replaces.
+Needs CounterStrikeSharp 1.0.374 or newer; `PanoramaManager.dll` ships beside the plugin.
+
 ## 💡 About
 jRandomSkills is a plugin for CounterStrike 2 that brings chaos and fun to gameplay! In each round, you randomly receive one of the unique skills - from invisibility and explosive shots to camera manipulation. Surprise your opponents, take control of the match, and discover dozens of creative abilities that transform the game's dynamics!
 

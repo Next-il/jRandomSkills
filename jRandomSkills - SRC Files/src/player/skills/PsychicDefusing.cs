@@ -145,6 +145,11 @@ namespace src.player.skills
                 playerInfo.PrintHTML = null;
             else
                 playerInfo.PrintHTML = $"{player.GetTranslation("psychicdefusing_hud_info", $"<font color='#00d5ff'>{cooldown}</font>")}";
+
+            if (skillInfo.DefusingTime > 0)
+                SkillHud.Progress(playerInfo, skillInfo.DefusingTime, SkillsInfo.GetValue<float>(skillName, "defusingTime"), "hud_defusing");
+            else
+                SkillHud.Clear(playerInfo);
         }
         public class PlayerSkillInfo
         {

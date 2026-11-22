@@ -89,7 +89,7 @@ namespace src.player.skills
 
             var victimEvent = PlayerManager.GetPlayerFromEvent(victim);
             if (victimEvent != null && victimEvent.IsValid)
-                victimEvent.PrintToChat($" {ChatColors.Red}{victimEvent.GetTranslation("pickpocket_enemy_info")}");
+                SkillHud.EnemySkill(victimEvent, skillName, "pickpocket_enemy_info");
         }
 
         private static void TakeOne(CCSPlayerPawn pawn, CBasePlayerWeapon weapon)

@@ -259,6 +259,7 @@ namespace src.player.skills
             if (jester == null) return;
 
             playerInfo.PrintHTML = $"{player.GetTranslation("jester_mode")}: <font color='{(jester.Active ? "#00ff00" : "#ff0000")}'>{player.GetTranslation(jester.Active ? "jester_on" : "jester_off")}</font>";
+            SkillHud.Toggle(playerInfo, jester.Active, "jester_mode", "jester_on", "jester_off");
         }
 
         public static JesterInfo? GetJesterInfo(uint playerIndex)

@@ -218,7 +218,7 @@ namespace src.player.skills
 
                 eInfo.SpecialSkill = enemySkill;
                 eInfo.Skill = Skills.None;
-                enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("thief_enemy_info"));
+                SkillHud.EnemySkill(enemyEvent, skillName, "thief_enemy_info", lostFrom: eInfo);
             }, CounterStrikeSharp.API.Modules.Timers.TimerFlags.STOP_ON_MAPCHANGE);
         }
 

@@ -1077,6 +1077,7 @@ namespace src.utils
             var playerInfo = PlayerManager.GetPlayer(player);
             if (playerInfo == null) return;
             playerInfo.PrintHTML = null;
+            playerInfo.Hud.Clear();
         }
 
         public static CTriggerMultiple? CreateTrigger(string name, float radius, Vector pos, uint ownerPlayerIndex = EntityManager.SystemOwnerIndex)

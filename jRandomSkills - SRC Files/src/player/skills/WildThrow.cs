@@ -161,7 +161,7 @@ namespace src.player.skills
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("wildthrow_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "wildthrow_enemy_info");
         }
 
         public static void OnEntitySpawned(CEntityInstance @event)

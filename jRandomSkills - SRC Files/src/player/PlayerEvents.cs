@@ -283,6 +283,11 @@ namespace src.player
                     var playerInfo = PlayerManager.GetPlayer(PlayerManager.GetPlayerEvent(player) ?? player);
                     if (playerInfo == null) return HookResult.Continue;
 
+                    // The HUD card is a layout, not center HTML, so it no longer steps aside for other plugins' center
+                    // HTML (and never covers it). Only a WASD menu, which still is center HTML, keeps stepping aside.
+                    if (isOtherPlugin && HeroesHud.IsDrawing(player) && !SkillUtils.HasMenu(player))
+                        return HookResult.Continue;
+
                     if (isOtherPlugin && playerInfo.HideHUD != int.MaxValue)
                     {
                         playerInfo.HideHUD = tickCount + 15;
@@ -634,6 +639,9 @@ namespace src.player
         {
             lock (setLock)
             {
+                if (@event.Userid is { IsValid: true } leaving)
+                    HeroesHud.OnDisconnect(leaving.Slot);
+
                 PlayerManager.ResetKeyCache();
                 var player = PlayerManager.GetPlayerEvent(@event.Userid);
                 if (player == null || !player.IsValid) return HookResult.Continue;

@@ -42,6 +42,7 @@ namespace src.player
 
         private static void OnMapStart(string mapName)
         {
+            HeroesHud.OnMapStart();
             skills.NoRecoil.ForgetSpread();
             PlayerManager.SetServerActive(true);
             Instance.GameRules = null;
@@ -79,6 +80,14 @@ namespace src.player
         private static void UpdatePlayerHud(CCSPlayerController player, DateTime now)
         {
             if (player == null || !player.IsValid || player.IsBot) return;
+
+            // The Panorama card, spectator line, alerts and Coins line (src/hud). It does all of what follows on its
+            // own; this path is the old center HTML, for Hud.Enabled = false and for a player the panel cannot open for.
+            if (HeroesHud.Draws(player))
+            {
+                HeroesHud.Update(player, now);
+                return;
+            }
 
             // No skill HUD during warmup or after the match ended.
             var gameRules = Instance?.GameRules;

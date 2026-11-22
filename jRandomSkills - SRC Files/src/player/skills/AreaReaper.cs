@@ -132,6 +132,20 @@ namespace src.player.skills
                     teammate.PrintToChat($" {ChatColors.Red}" + teammate.GetTranslation("areareaper_owner_dead_info", siteLetter));
         }
 
+        /// <summary>The closed site's letter for the HUD banner, when exactly one site is closed this round.</summary>
+        private static void AlertSiteClosed(CCSPlayerController viewer)
+        {
+            string? letter = null;
+            var closed = playersToTarget.Values.Distinct().ToArray();
+            if (closed.Length == 1)
+            {
+                var site = Utilities.GetEntityFromIndex<CBombTarget>((int)closed[0]);
+                if (site != null && site.IsValid) letter = SiteLetter(site);
+            }
+
+            SkillHud.SiteClosed(viewer, letter);
+        }
+
         private static string SiteLetter(CBombTarget site)
         {
             var bombTargets = Utilities.FindAllEntitiesByDesignerName<CBombTarget>("func_bomb_target").ToArray();
@@ -157,7 +171,7 @@ namespace src.player.skills
                 if (activeWeapon == null || !activeWeapon.IsValid || activeWeapon.DesignerName != "weapon_c4") continue;
 
                 if (!pawn.InBombZone && pawn.InBombZoneTrigger)
-                    playerEvent.PrintToCenterAlert(playerEvent.GetTranslation("areareaper_bombsite_disabled"));
+                    AlertSiteClosed(playerEvent);
             }
         }
 

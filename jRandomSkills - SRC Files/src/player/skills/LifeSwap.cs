@@ -77,7 +77,7 @@ namespace src.player.skills
 
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent != null && enemyEvent.IsValid)
-                enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("lifeswap_enemy_info"));
+                SkillHud.EnemySkill(enemyEvent, skillName, "lifeswap_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

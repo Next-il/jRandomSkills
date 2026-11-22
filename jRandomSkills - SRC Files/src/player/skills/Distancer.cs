@@ -66,6 +66,10 @@ namespace src.player.skills
 
                 string distanceColor = closetDistance > 1500 ? "#00FF00" : closetDistance > 600 ? "#FFFF00" : "#FF0000";
                 playerInfo.PrintHTML = $"{System.Net.WebUtility.HtmlEncode(closetEnemy)}: <font color='{distanceColor}'>{(closetDistance > 3000 ? "3000+" : closetDistance)}</font>";
+                SkillHud.Value(playerInfo,
+                    closest < 0 ? "-" : closetDistance > 3000 ? "3,000+" : (Math.Round(closetDistance / 10) * 10).ToString("N0", System.Globalization.CultureInfo.InvariantCulture),
+                    null, closetEnemy,
+                    closetDistance > 1500 ? HudTone.Good : closetDistance > 600 ? HudTone.Mid : HudTone.Bad);
             }
         }
 

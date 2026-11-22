@@ -145,6 +145,8 @@ namespace src.player.skills
                 playerInfo.PrintHTML = null;
             else
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+
+            SkillHud.Cooldown(playerInfo, skillInfo?.Cooldown ?? DateTime.MinValue, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         private static bool TryPlaceWire(CCSPlayerController player)

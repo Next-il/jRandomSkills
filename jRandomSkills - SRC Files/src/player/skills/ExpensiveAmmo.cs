@@ -108,7 +108,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("expensiveammo_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("expensiveammo_enemy_info", SkillsInfo.GetValue<int>(skillName, "moneyPerShot")));
+            SkillHud.EnemySkill(enemyEvent, skillName, "expensiveammo_enemy_info", [SkillsInfo.GetValue<int>(skillName, "moneyPerShot")]);
         }
 
         public static void EnableSkill(CCSPlayerController player)

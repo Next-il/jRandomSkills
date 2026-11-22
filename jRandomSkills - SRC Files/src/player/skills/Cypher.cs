@@ -397,6 +397,13 @@ namespace src.player.skills
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{secondsLeft}</font>")}";
             else
                 playerInfo.PrintHTML = null;
+
+            if (playerSkill.NoSpace >= Server.TickCount)
+                SkillHud.Error(playerInfo, "cypher_nospace");
+            else if (secondsLeft > 0 && playerSkill.CameraProp == null)
+                SkillHud.CooldownLeft(playerInfo, Math.Max(ticksLeft / 64.0f, 0), SkillsInfo.GetValue<float>(skillName, "cooldown"));
+            else
+                SkillHud.Ready(playerInfo);
         }
 
         public class PlayerSkill

@@ -141,7 +141,7 @@ namespace src.player.skills
 
             if (enemyEvent != null && enemyEvent.IsValid)
             {
-                enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("nightmare_enemy_info"));
+                SkillHud.EnemySkill(enemyEvent, skillName, "nightmare_enemy_info");
                 SkillUtils.EmitSoundToPlayer(enemyEvent, cursedSound, SkillsInfo.GetValue<float>(skillName, "soundVolume"));
             }
         }

@@ -140,7 +140,7 @@ namespace src.player.skills
 
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent != null && enemyEvent.IsValid)
-                enemyEvent.PrintToChat($" {ChatColors.Red}{enemyEvent.GetTranslation("bowlegs_enemy_info")}");
+                SkillHud.EnemySkill(enemyEvent, skillName, "bowlegs_enemy_info");
         }
 
         public static void OnTick()

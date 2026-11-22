@@ -102,7 +102,7 @@ namespace src.player.skills
 
                     var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
                     if (enemyEvent != null && enemyEvent.IsValid)
-                        enemyEvent.PrintToChat($" {ChatColors.Red}{enemyEvent.GetTranslation("bankrupt_enemy_info")}");
+                        SkillHud.EnemySkill(enemyEvent, skillName, "bankrupt_enemy_info");
                     return;
                 }
             }

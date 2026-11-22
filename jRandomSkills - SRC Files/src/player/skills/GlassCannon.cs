@@ -23,6 +23,7 @@ namespace src.player.skills
             {
                 int percent = (int)MathF.Round(SkillsInfo.GetValue<float>(skillName, "extraDamagePercent") * 100f);
                 playerInfo.PrintHTML = player.GetTranslation("glasscannon_hud", $"<font color='#ff5e5e'>{MaxHealth()}</font>", $"<font color='#9fe8ff'>{percent}</font>");
+                SkillHud.Rolled(playerInfo, $"+{percent}%", "hud_roll_glasscannon");
             }
 
             var pawn = player.PlayerPawn?.Value;
@@ -66,7 +67,10 @@ namespace src.player.skills
         {
             var playerInfo = PlayerManager.GetPlayer(player);
             if (playerInfo != null)
+            {
                 playerInfo.PrintHTML = null;
+                SkillHud.ClearRolled(playerInfo);
+            }
 
             var pawn = player.PlayerPawn?.Value;
             if (pawn == null || !pawn.IsValid) return;

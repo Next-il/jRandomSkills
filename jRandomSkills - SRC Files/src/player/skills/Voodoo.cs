@@ -118,7 +118,7 @@ namespace src.player.skills
 
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent != null && enemyEvent.IsValid)
-                enemyEvent.PrintToChat($" {ChatColors.Red}{enemyEvent.GetTranslation("voodoo_enemy_info")}");
+                SkillHud.EnemySkill(enemyEvent, skillName, "voodoo_enemy_info");
         }
 
         public static void PlayerHurt(EventPlayerHurt @event)

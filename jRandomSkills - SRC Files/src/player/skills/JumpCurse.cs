@@ -122,7 +122,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("jumpcurse_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("jumpcurse_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "jumpcurse_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

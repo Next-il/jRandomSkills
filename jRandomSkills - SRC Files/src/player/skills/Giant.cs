@@ -141,7 +141,7 @@ namespace src.player.skills
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("giant_enemy_info", newSize));
+            SkillHud.EnemySkill(enemyEvent, skillName, "giant_enemy_info", [newSize]);
         }
 
         public static void DisableSkill(CCSPlayerController player)

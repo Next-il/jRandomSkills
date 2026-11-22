@@ -110,7 +110,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("deaf_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("deaf_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "deaf_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

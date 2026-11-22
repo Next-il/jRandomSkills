@@ -90,10 +90,16 @@ namespace src.player.skills
                         ? $"<font color='#FF0000'>{player.GetTranslation("hud_info_no_enemy")}</font>" : null;
                 else
                     SkillUtils.ResetPrintHTML(player);
+
+                if (showInfo && skillInfo != null && !skillInfo.FindedEnemy)
+                    SkillHud.Error(playerInfo, "hud_info_no_enemy");
+                else
+                    SkillHud.Ready(playerInfo);
                 return;
             }
 
             playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+            SkillHud.Cooldown(playerInfo, skillInfo?.Cooldown ?? DateTime.MinValue, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public static void UseSkill(CCSPlayerController player)

@@ -249,6 +249,15 @@ namespace src.player.skills
                     playerInfo.PrintHTML = $"{player.GetTranslation("teamteleport_hud_info", $"<font color='{color}'>{System.Net.WebUtility.HtmlEncode(skillInfo.TeamateName)}</font>")}";
                 }
             }
+
+            if (cooldown != 0)
+                SkillHud.Cooldown(playerInfo, skillInfo.Cooldown, SkillsInfo.GetValue<float>(skillName, "cooldown"));
+            else if (skillInfo.NoSpace >= Server.TickCount)
+                SkillHud.Error(playerInfo, "shade_nospace");
+            else if (skillInfo.NoEnemy >= Server.TickCount)
+                SkillHud.Error(playerInfo, "teamteleport_noenemy");
+            else
+                SkillHud.Ready(playerInfo, skillInfo.TeamateName);
         }
 
         public class SkillConfig(Skills skill = skillName, bool active = true, string color = "#bcf542", CsTeam onlyTeam = CsTeam.None, bool disableOnFreezeTime = true, bool needsTeammates = true, string requiredPermission = "", float? hudDuration = null, float? descriptionHudDuration = null, int maxPerServer = 2, Rarity rarity = Rarity.Common, float cooldown = 15f, float teleportAngle = 10.0f, float teleportDistance = 100f) : SkillsInfo.DefaultSkillInfo(skill, active, color, onlyTeam, disableOnFreezeTime, needsTeammates, requiredPermission, hudDuration, descriptionHudDuration, maxPerServer, rarity)

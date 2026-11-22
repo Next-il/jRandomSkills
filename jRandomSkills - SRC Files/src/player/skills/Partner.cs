@@ -160,6 +160,11 @@ namespace src.player.skills
                     ? $"{name}: <font color='{color}'>{bars[level]}</font>"
                     : $"<font color='#7a7a7a'>{(owner.GetTranslation("partner_dead_info"))}</font>";
 
+                if (partnerAlive)
+                    SkillHud.Value(ownerInfo, "", null, partner?.PlayerName ?? "?", pips: level, pipsMax: Levels);
+                else
+                    SkillHud.Value(ownerInfo, "", "partner_dead_info");
+
                 if (level == 0)
                 {
                     bond.NextHealTick = tick + cooldown;

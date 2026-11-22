@@ -105,7 +105,7 @@ namespace src.player.skills
             playerInfo.SkillUsed = true;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("jetkick_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("jetkick_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "jetkick_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

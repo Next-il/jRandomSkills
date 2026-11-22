@@ -121,10 +121,18 @@ namespace src.player.skills
                             : skillInfo != null && !skillInfo.EnemyHaveAmmo ? $"<font color='#FF0000'>{player.GetTranslation("takeammo_hud_info2")}</font>" : null;
                 else
                     SkillUtils.ResetPrintHTML(player);
+
+                if (showInfo && skillInfo != null && !skillInfo.FindedEnemy)
+                    SkillHud.Error(playerInfo, "takeammo_hud_info1");
+                else if (showInfo && skillInfo != null && !skillInfo.EnemyHaveAmmo)
+                    SkillHud.Error(playerInfo, "takeammo_hud_info2");
+                else
+                    SkillHud.Ready(playerInfo);
                 return;
             }
 
             playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+            SkillHud.Cooldown(playerInfo, skillInfo?.Cooldown ?? DateTime.MinValue, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public static void UseSkill(CCSPlayerController player)
@@ -173,7 +181,7 @@ namespace src.player.skills
 
                         var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
                         if (enemyEvent == null || !enemyEvent.IsValid) return;
-                        enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("takeammo_enemy_info"));
+                        SkillHud.EnemySkill(enemyEvent, skillName, "takeammo_enemy_info");
                     });
                 }
                 else

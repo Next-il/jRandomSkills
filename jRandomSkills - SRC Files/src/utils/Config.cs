@@ -98,16 +98,24 @@ namespace src.utils
             }
         }
 
-        private static bool HasMissingKeys(Newtonsoft.Json.Linq.JObject current, Newtonsoft.Json.Linq.JObject expected)
+        /// <summary>
+        /// Top-level sections a config file may leave out without being rewritten: they take their defaults.
+        /// The plugin never writes config.json just because one of these is missing.
+        /// </summary>
+        private static readonly HashSet<string> OptionalKeys = [nameof(SettingsModel.Hud)];
+
+        private static bool HasMissingKeys(Newtonsoft.Json.Linq.JObject current, Newtonsoft.Json.Linq.JObject expected, bool topLevel = true)
         {
             foreach (var property in expected.Properties())
             {
+                if (topLevel && OptionalKeys.Contains(property.Name)) continue;
+
                 var currentValue = current[property.Name];
                 if (currentValue == null) return true;
 
                 if (property.Value is Newtonsoft.Json.Linq.JObject expectedChild
                     && currentValue is Newtonsoft.Json.Linq.JObject currentChild
-                    && HasMissingKeys(currentChild, expectedChild)) return true;
+                    && HasMissingKeys(currentChild, expectedChild, false)) return true;
             }
 
             return false;
@@ -182,6 +190,7 @@ namespace src.utils
             public WeaponPools Weapons { get; set; }
             public LanguageSystem LanguageSystem { get; set; }
             public HtmlHudCustomisation HtmlHudCustomisation { get; set; }
+            public HudSettings Hud { get; set; } = new();
             public ChatMessage ChatMessage { get; set; }
             public NormalCommands NormalCommands { get; set; }
             public VotingCommands VotingCommands { get; set; }
@@ -358,6 +367,38 @@ namespace src.utils
             public required string InfoSkillColor { get; set; }
             public required bool InfoMessageShow { get; set; }
             public required string TagFormat { get; set; }
+        }
+
+        /// <summary>
+        /// The Panorama HUD (hud/panorama/layout/custom_game/heroes_hud.xml in the workshop addon). Optional in
+        /// config.json: a file without "Hud" gets these defaults and is not rewritten. Enabled = false brings the
+        /// center HTML, the center alerts and the chat lines back exactly as they were.
+        /// </summary>
+        public class HudSettings
+        {
+            /// <summary>Draw the skill card, spectator line, alerts and Coins line instead of center HTML.</summary>
+            public bool Enabled { get; set; } = true;
+
+            /// <summary>"Bottom" (bottom center, between HP and ammo) or "Crosshair" (under it, where the center text was).</summary>
+            public string CardPosition { get; set; } = "Bottom";
+
+            /// <summary>"Site" (under the Retakes site panel) or "Card" (above the skill card).</summary>
+            public string AlertPosition { get; set; } = "Site";
+
+            /// <summary>"Always" (all round), or "Fold" (to the name once the description time runs out).</summary>
+            public string Description { get; set; } = "Always";
+
+            /// <summary>"Under" or "Beside" the money.</summary>
+            public string CoinsPosition { get; set; } = "Under";
+
+            /// <summary>The key chip's text. Empty: taken from AlternativeSkillButton ("X" stays "X").</summary>
+            public string KeyLabel { get; set; } = "";
+
+            /// <summary>"An enemy used a skill on you" as a banner instead of the red chat line.</summary>
+            public bool EnemySkillAlerts { get; set; } = true;
+
+            /// <summary>Keep the round's "skill: description" chat line, which the card otherwise replaces.</summary>
+            public bool SkillChatLine { get; set; } = false;
         }
 
         public class HtmlHudCustomisation

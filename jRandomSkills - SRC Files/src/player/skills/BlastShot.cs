@@ -103,6 +103,8 @@ namespace src.player.skills
                 playerInfo.PrintHTML = null;
             else
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+
+            SkillHud.Cooldown(playerInfo, skillInfo?.Cooldown ?? DateTime.MinValue, cooldownSkill);
         }
 
         private static void SpawnExplosion(CCSPlayerController player)

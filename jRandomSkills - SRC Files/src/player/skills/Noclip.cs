@@ -79,6 +79,7 @@ namespace src.player.skills
             if (cooldown == 0)
             {
                 playerInfo.PrintHTML = null;
+                SkillHud.Ready(playerInfo);
                 return;
             }
 
@@ -86,6 +87,11 @@ namespace src.player.skills
                 skillInfo?.IsFlying == true
                     ? $"{player.GetTranslation("active_hud_info", $"<font color='#00FF00'>{Math.Round(flying / 100, 2)}</font>")}"
                     : $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+
+            if (skillInfo?.IsFlying == true && flying > 0)
+                SkillHud.Active(playerInfo, flying / 1000f, SkillsInfo.GetValue<float>(skillName, "duration"));
+            else
+                SkillHud.Cooldown(playerInfo, skillInfo?.Cooldown ?? DateTime.MinValue, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public static void UseSkill(CCSPlayerController player)

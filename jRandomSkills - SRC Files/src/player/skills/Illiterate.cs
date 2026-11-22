@@ -60,7 +60,7 @@ namespace src.player.skills
                 if (playerEvent == null || !playerEvent.IsValid) continue;
 
                 string alert = playerEvent.GetTranslationWithoutIlliterate("illiterate_alert");
-                playerEvent.PrintToCenterAlert(alert);
+                SkillHud.IlliterateAlert(playerEvent, alert);
                 SkillUtils.PrintToChat(playerEvent, $"{ChatColors.Red}{alert}", ignoreIlliterate: true);
             }
         }

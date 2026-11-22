@@ -46,6 +46,7 @@ namespace src
             Command.Load();
             WASDMenuAPI.WASDMenuAPI.LoadPlugin(Instance, hotReload);
             LoadAllSkills();
+            HeroesHud.Load(this);
             if (hotReload) PlayerManager.SetServerActive(true);
             Event.RegisterConnectedPlayers();
 
@@ -64,6 +65,7 @@ namespace src
             Debug.WriteToDebug("===== PLUGIN UNLOAD (clean shutdown/reload) =====");
 
             Event.Unload();
+            HeroesHud.Unload();
             Debug.Unload();
 
             base.Unload(hotReload);
@@ -367,6 +369,8 @@ namespace src
         public DateTime SkillDescriptionHudExpired { get; set; }
         public DateTime HudSuppressedUntil { get; set; }
         public string? PrintHTML { get; set; }
+        /// <summary>The structured twin of PrintHTML, for the Panorama HUD card (src/hud).</summary>
+        public SkillHudState Hud { get; } = new();
         public int HideHUD { get; set; }
         public bool SkillUsed = false;
         public bool? HudOnDeathBlocked { get; set; }

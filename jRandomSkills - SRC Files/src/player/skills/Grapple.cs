@@ -363,6 +363,11 @@ namespace src.player.skills
                 playerInfo.PrintHTML = null;
             else
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+
+            if (skillInfo.Anchor != null)
+                SkillHud.Busy(playerInfo, "grapple_pulling_info");
+            else
+                SkillHud.Cooldown(playerInfo, skillInfo.Cooldown, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public class PlayerSkillInfo

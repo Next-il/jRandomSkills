@@ -93,11 +93,20 @@ namespace src.player
             return candidates[Random.Shared.Next(candidates.Count)];
         }
 
+        private static DateTime drawStartedAt = DateTime.MinValue;
+
+        /// <summary>When the round's draw began (round start), for the HUD card's countdown and bar.</summary>
+        public static DateTime DrawStartedAt => drawStartedAt;
+
+        /// <summary>When the draw lands (SetSkill is due), or MaxValue when nothing is scheduled.</summary>
+        public static DateTime DrawEndsAt => setSkillDueAt;
+
         private static HookResult RoundStart(EventRoundStart @event, GameEventInfo info)
         {
             lock (setLock)
             {
                 bool isWarmup = IsWarmupPeriod();
+                drawStartedAt = DateTime.Now;
                 isTransmitRegistered = false;
                 setSkillRetries = 0;
                 setSkillRanThisRound = false;
@@ -113,6 +122,7 @@ namespace src.player
                     if (skillPlayer == null) continue;
                     skillPlayer.IsDrawing = !isWarmup;
                     skillPlayer.PrintHTML = null;
+                    skillPlayer.Hud.ResetRound();
                 }
 
                 Instance.RemoveListener<CheckTransmit>(CheckTransmit);
@@ -191,6 +201,7 @@ namespace src.player
                     playerInfo.Skill = noneSkill.Skill;
                     playerInfo.SpecialSkill = noneSkill.Skill;
                     playerInfo.PrintHTML = null;
+                    playerInfo.Hud.ResetRound();
                     playerInfo.SkillChance = 1;
                     playerInfo.SkillUsed = false;
 
@@ -706,6 +717,7 @@ namespace src.player
                         {
                             var descTarget = PlayerManager.GetController(playerIndex);
                             if (descTarget == null || !descTarget.IsValid) return;
+                            if (HeroesHud.ReplacesChatLine(descTarget)) return;
 
                             SkillUtils.PrintToChat(descTarget, $"{ChatColors.DarkRed}{descTarget.GetSkillName(randomSkill.Skill)}{ChatColors.Lime}: {descTarget.GetSkillDescription(randomSkill.Skill)}", border: "tb");
                         }, CounterStrikeSharp.API.Modules.Timers.TimerFlags.STOP_ON_MAPCHANGE);
@@ -854,7 +866,7 @@ namespace src.player
                 skillPlayer.Skill = randomSkill.Skill;
                 skillPlayer.SpecialSkill = Skills.None;
 
-                if (randomSkill.Display && Config.LoadedConfig.YourSkillChatInfo)
+                if (randomSkill.Display && Config.LoadedConfig.YourSkillChatInfo && !HeroesHud.ReplacesChatLine(player))
                     SkillUtils.PrintToChat(player, $"{ChatColors.DarkRed}{player.GetSkillName(randomSkill.Skill)}{ChatColors.Lime}: {player.GetSkillDescription(randomSkill.Skill)}", border: "tb");
 
                 if (randomSkill.Skill == Skills.Illiterate)

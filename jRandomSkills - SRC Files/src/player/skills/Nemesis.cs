@@ -122,7 +122,7 @@ namespace src.player.skills
 
             var enemyEvent = PlayerManager.GetPlayerFromEvent(enemy);
             if (enemyEvent != null && enemyEvent.IsValid)
-                enemyEvent.PrintToChat($" {ChatColors.Red}{enemyEvent.GetTranslation("nemesis_enemy_info")}");
+                SkillHud.EnemySkill(enemyEvent, skillName, "nemesis_enemy_info");
         }
 
         public static void OnTakeDamage(CBaseEntity damagedEntity, CTakeDamageInfo damageInfo)

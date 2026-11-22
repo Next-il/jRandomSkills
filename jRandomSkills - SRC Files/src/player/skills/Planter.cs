@@ -53,6 +53,7 @@ namespace src.player.skills
             var playerInfo = PlayerManager.GetPlayer(player);
             if (playerInfo?.Skill != skillName) return;
             playerInfo.PrintHTML = null;
+            SkillHud.Clear(playerInfo);
 
             var plantedBomb = Utilities.FindAllEntitiesByDesignerName<CPlantedC4>("planted_c4").FirstOrDefault();
             if (plantedBomb != null)
@@ -63,7 +64,7 @@ namespace src.player.skills
                 });
 
             foreach (var p in PlayerManager.GetTickPlayers().Where(p => p.IsValid))
-                p.PrintToCenterAlert(p.GetTranslation("bombplanted", SkillsInfo.GetValue<int>(skillName, "extraC4BlowTime")));
+                SkillHud.BombPlanted(p, skillName, SkillsInfo.GetValue<int>(skillName, "extraC4BlowTime"));
         }
 
         public static void NewRound()
@@ -116,6 +117,7 @@ namespace src.player.skills
                 {
                     float remaining = plantTime + 3f - currentTime;
                     playerInfo.PrintHTML = $"{player.GetTranslation("planter_planting", $"<font color='#00FF00'>{Math.Max(0, remaining):0.0}s</font>")}";
+                    SkillHud.Progress(playerInfo, remaining, 3f, "hud_planting");
                     player.PrintToCenter(" ");
                 }
             }

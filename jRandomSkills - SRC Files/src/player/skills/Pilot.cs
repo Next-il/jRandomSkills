@@ -140,6 +140,10 @@ namespace src.player.skills
             if (playerInfo == null) return;
 
             var maximumFuel = SkillsInfo.GetValue<float>(skillName, "maximumFuel");
+            float fuel = maximumFuel <= 0 ? 0 : pilotInfo.Fuel / maximumFuel;
+            HudTone tone = pilotInfo.Fuel > maximumFuel / 2f ? HudTone.Good : pilotInfo.Fuel > maximumFuel / 4f ? HudTone.Mid : HudTone.Bad;
+            SkillHud.Value(playerInfo, $"{fuel * 100:F0}%", "pilot_hud_info", tone: tone, bar: fuel);
+
             if (pilotInfo.Fuel == maximumFuel && playerInfo.SkillDescriptionHudExpired >= DateTime.Now)
             {
                 playerInfo.PrintHTML = null;

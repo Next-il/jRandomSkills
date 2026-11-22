@@ -23,6 +23,9 @@
         <PackageReference Include="MaxMind.Db" Version="5.2.0">
         </PackageReference>
         <PackageReference Include="Newtonsoft.Json" Version="13.0.4" />
+        <!-- The Panorama HUD (src/hud, layout in hud/panorama). Ships beside the plugin: each CounterStrikeSharp
+             plugin loads from its own folder. Same version as the other Next HUD plugins. Needs CSS 1.0.374+. -->
+        <PackageReference Include="PanoramaManager" Version="0.4.3" />
     </ItemGroup>
 
 	<!-- Relative path to the WASDMenuAPI source code -->
@@ -74,6 +77,7 @@
             <CompiledDLL Include="$(SourceDLL)\WASDMenuAPI.pdb" />
 	        <CompiledDLL Include="$(SourceDLL)\MaxMind.Db.dll" />
 	        <CompiledDLL Include="$(SourceDLL)\Newtonsoft.Json.dll" />
+	        <CompiledDLL Include="$(SourceDLL)\PanoramaManager.dll" />
         </ItemGroup>
         <MakeDir Directories="$(ServerDLL)" Condition="!Exists('$(ServerDLL)')" />
         <Copy SourceFiles="@(CompiledDLL)" DestinationFiles="@(CompiledDLL->'$(ServerDLL)\\%(Filename)%(Extension)')" SkipUnchangedFiles="false" />

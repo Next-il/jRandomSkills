@@ -117,7 +117,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("darkness_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("darkness_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "darkness_enemy_info");
         }
 
         public static void BotTakeover(EventBotTakeover @event)

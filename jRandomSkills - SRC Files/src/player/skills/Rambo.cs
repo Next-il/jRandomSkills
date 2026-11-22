@@ -19,10 +19,12 @@ namespace src.player.skills
         {
             int healthBonus = Instance.Random.Next(SkillsInfo.GetValue<int>(skillName, "minExtraHealth"), SkillsInfo.GetValue<int>(skillName, "maxExtraHealth"));
             AddHealth(player, healthBonus);
+            SkillHud.Rolled(PlayerManager.GetPlayer(player), $"+{healthBonus}", "hud_roll_rambo");
         }
 
         public static void DisableSkill(CCSPlayerController player)
         {
+            SkillHud.ClearRolled(PlayerManager.GetPlayer(player));
             ResetHealth(player);
         }
 

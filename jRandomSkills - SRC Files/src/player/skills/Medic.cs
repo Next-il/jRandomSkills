@@ -77,6 +77,8 @@ namespace src.player.skills
                 : $"<font color='#{(skillInfo == null || skillInfo.Count == 0 ? "FF0000" : "00FF00")}'>{(skillInfo == null ? 0 : skillInfo.Count)}/{SkillsInfo.GetValue<int>(skillName, "healthShotLimit")}</font>";
 
             playerInfo.PrintHTML = remainingLine;
+            SkillHud.Charges(playerInfo, skillInfo?.Count ?? 0, SkillsInfo.GetValue<int>(skillName, "healthShotLimit"),
+                skillInfo?.Cooldown ?? DateTime.MinValue, SkillsInfo.GetValue<float>(skillName, "cooldown"));
         }
 
         public static void UseSkill(CCSPlayerController player)

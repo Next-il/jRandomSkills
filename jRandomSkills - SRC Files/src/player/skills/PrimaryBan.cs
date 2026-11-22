@@ -113,7 +113,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("primaryban_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("primaryban_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "primaryban_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

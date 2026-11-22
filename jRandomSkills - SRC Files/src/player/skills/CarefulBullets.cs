@@ -100,7 +100,7 @@ namespace src.player.skills
             if (enemyEvent == null || !enemyEvent.IsValid) return;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("carefulbullets_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("carefulbullets_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "carefulbullets_enemy_info");
         }
 
         public static void EnableSkill(CCSPlayerController player)

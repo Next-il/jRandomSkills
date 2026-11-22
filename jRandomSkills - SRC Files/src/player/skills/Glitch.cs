@@ -116,7 +116,7 @@ namespace src.player.skills
             playerInfo.SkillUsed = true;
 
             playerEvent.PrintToChat($" {ChatColors.Green}" + playerEvent.GetTranslation("glitch_player_info", enemy.PlayerName));
-            enemyEvent.PrintToChat($" {ChatColors.Red}" + enemyEvent.GetTranslation("glitch_enemy_info"));
+            SkillHud.EnemySkill(enemyEvent, skillName, "glitch_enemy_info");
         }
 
         public static void BotTakeover(EventBotTakeover @event)

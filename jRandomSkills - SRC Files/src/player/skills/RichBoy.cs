@@ -34,12 +34,14 @@ namespace src.player.skills
             accountBeforeBonus[player.Key()] = moneyServices.Account;
 
             moneyServices.Account += moneyBonus;
+            SkillHud.Rolled(PlayerManager.GetPlayer(player), "+$" + moneyBonus.ToString("N0", System.Globalization.CultureInfo.InvariantCulture), "hud_roll_richboy");
             Utilities.SetStateChanged(player, "CCSPlayerController", "m_pInGameMoneyServices");
         }
 
         public static void DisableSkill(CCSPlayerController player)
         {
             if (player == null || !player.IsValid) return;
+            SkillHud.ClearRolled(PlayerManager.GetPlayer(player));
             if (!accountBeforeBonus.TryRemove(player.Key(), out int accountBefore)) return;
 
             var moneyServices = player.InGameMoneyServices;

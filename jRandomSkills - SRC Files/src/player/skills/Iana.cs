@@ -432,6 +432,18 @@ namespace src.player.skills
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#00FF00'>{duration}</font>")}";
             else if (cooldown > 0)
                 playerInfo.PrintHTML = $"{player.GetTranslation("hud_info", $"<font color='#FF0000'>{cooldown}</font>")}";
+
+            float hudDuration = SkillsInfo.GetValue<float>(skillName, "Duration");
+            float hudActive = hudDuration - (Server.TickCount - playerSkill.UseTime) / 64f;
+            float hudCooldown = (playerSkill.NextUse - Server.TickCount) / 64f;
+            if (playerSkill.InfoTime + (64 * 2) > Server.TickCount)
+                SkillHud.Error(playerInfo, "shade_nospace");
+            else if (duration > 0 && hudActive > 0)
+                SkillHud.Active(playerInfo, hudActive, hudDuration);
+            else if (hudCooldown > 0)
+                SkillHud.CooldownLeft(playerInfo, hudCooldown, SkillsInfo.GetValue<float>(skillName, "Cooldown"));
+            else
+                SkillHud.Ready(playerInfo);
         }
 
         public static bool OnWeaponCanAcquire(DynamicHook hook, CCSPlayerController player, CEconItemView econItem, CCSWeaponBaseVData vdata)
