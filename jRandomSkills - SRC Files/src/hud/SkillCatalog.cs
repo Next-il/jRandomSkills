@@ -184,7 +184,7 @@ namespace src.utils
 
         /// <summary>
         /// The key chip: Hud.KeyLabel, else what AlternativeSkillButton names. "X" stays "X" (players bind
-        /// css_useSkill to it); a button name reads as the key it usually sits on. Empty: no chip.
+        /// css_useSkill to it); a button name reads as the key it usually sits on ("Use" is E). Empty: no chip.
         /// </summary>
         public static string KeyLabel()
         {
@@ -193,28 +193,16 @@ namespace src.utils
 
             var button = Config.LoadedConfig.AlternativeSkillButton?.Trim();
             if (string.IsNullOrEmpty(button)) return "";
-            if (button.Length < 2) return button.ToUpperInvariant();
 
-            return button.ToLowerInvariant() switch
-            {
-                "use" => "E",
-                "reload" => "R",
-                "attack" => "M1",
-                "attack2" => "M2",
-                "jump" => "SPACE",
-                "duck" => "CTRL",
-                "speed" => "SHIFT",
-                "scoreboard" => "TAB",
-                "zoom" => "Z",
-                _ => button.ToUpperInvariant(),
-            };
+            return SkillButton.DefaultKey() ?? button.ToUpperInvariant();
         }
 
-        [GeneratedRegex(@"^\s*(?:click|press|use)\s+\[css_useSkill[^\]]*\]\s+(?:to\s+)?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
+        // "[css_useSkill]", "[css_useSkill/X]" or the key the translations put there ("[E]").
+        [GeneratedRegex(@"^\s*(?:click|press|use)\s+\[[^\]]+\]\s+(?:to\s+)?", RegexOptions.IgnoreCase | RegexOptions.CultureInvariant)]
         private static partial Regex UseKeyLead();
 
         /// <summary>
-        /// The description without "Click [css_useSkill/X] to": the key chip says it. English only; any other
+        /// The description without "Click [E] to" (or "[css_useSkill/X]"): the key chip says it. English only; any other
         /// wording is left as it is.
         /// </summary>
         public static string Description(CCSPlayerController viewer, Skills skill)

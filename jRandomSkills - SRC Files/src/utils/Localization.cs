@@ -83,11 +83,15 @@ namespace src.utils
             {
                 string redColor = ChatColors.Red.ToString();
                 string? altButton = Config.LoadedConfig.AlternativeSkillButton;
+                // A real button ("Use") reads as its key ("[E]"); anything else, such as "X", stays
+                // "[css_useSkill/X]" for players who bind the command themselves.
+                string? useKey = SkillButton.DefaultKey()
+                    ?? (string.IsNullOrEmpty(altButton) ? null : $"css_useSkill/{altButton}");
                 foreach (var tkey in translations.Keys.ToList())
                 {
                     var val = translations[tkey].Replace("CHATCOLORS.RED", redColor);
-                    if (!string.IsNullOrEmpty(altButton))
-                        val = val.Replace("css_useSkill", $"css_useSkill/{altButton}");
+                    if (useKey != null)
+                        val = val.Replace("css_useSkill", useKey);
                     translations[tkey] = val;
                 }
                 _translations.AddOrUpdate(code, translations, (k, v) => translations);
@@ -226,16 +230,13 @@ namespace src.utils
         {
             langCode ??= defaultLangCode;
             if (_translations.TryGetValue(langCode, out var langDict) && langDict.TryGetValue(key, out var translation))
-                if (args.Length != 0 && args[0].ToString() == "welcome")
-                    return translation;
-                else
-                {
-                    string output = args.Length == 0 ? translation : string.Format(translation, args);
+            {
+                string output = args.Length == 0 ? translation : string.Format(translation, args);
 
-                    if (useIlliterate && Illiterate.CheckIlliterateSkill(player))
-                        return Illiterate.GetRandomText(output)!;
-                    return output;
-                }
+                if (useIlliterate && Illiterate.CheckIlliterateSkill(player))
+                    return Illiterate.GetRandomText(output)!;
+                return output;
+            }
 
             if (langCode != defaultLangCode)
                 return GetTranslation(key, null, player, useIlliterate, args);

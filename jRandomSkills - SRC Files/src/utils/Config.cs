@@ -208,7 +208,7 @@ namespace src.utils
                 EnableFullForceUpdate = false;
                 DebugMode = 0;
                 PerfMode = false;
-                AlternativeSkillButton = null;
+                AlternativeSkillButton = "Use";
                 SkillTimeBeforeStart = 7;
                 SkillHudDuration = -1;
                 SkillDescriptionDuration = 7;

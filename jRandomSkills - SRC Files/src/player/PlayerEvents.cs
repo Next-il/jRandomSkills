@@ -621,16 +621,8 @@ namespace src.player
                 var player = PlayerManager.GetPlayerEvent(@event.Userid);
                 if (player == null || !player.IsValid) return HookResult.Continue;
 
+                // No welcome message on join: the owner asked for it gone.
                 Localization.PreResolveLanguage(player);
-
-                string welcomeMsg = player.GetTranslationWithoutIlliterate("welcome_message", "welcome");
-                foreach (string line in welcomeMsg.Split("\n"))
-                    player.PrintToChat($" {ChatColors.Green}" + line.Replace("{PLAYER}", $" {ChatColors.Red}\u202A{player.PlayerName}\u202C{ChatColors.Green}", StringComparison.OrdinalIgnoreCase)
-                                            .Replace("{SERVER_NAME}", $" {ChatColors.Red}{SkillUtils.CvarString("hostname", "Default Server")}{ChatColors.Green}", StringComparison.OrdinalIgnoreCase)
-                                            .Replace("{VERSION}", $" {ChatColors.Red}v{Instance.ModuleVersion}{ChatColors.Green}", StringComparison.OrdinalIgnoreCase)
-                                            .Replace("{SKILLS_COUNT}", $" {ChatColors.Red}{SkillData.Skills.Count - 1}{ChatColors.Green}", StringComparison.OrdinalIgnoreCase)
-                                            .Replace("{AUTHOR1}", $" {ChatColors.Red}Jakub Bartosik (D3X){ChatColors.Green} ({ChatColors.Red}https://github.com/jakubbartosik/dRandomSkills{ChatColors.Green})", StringComparison.OrdinalIgnoreCase)
-                                            .Replace("{AUTHOR2}", $" {ChatColors.Red}Juzlus{ChatColors.Green} ({ChatColors.Red}https://github.com/Juzlus/jRandomSkills{ChatColors.Green})", StringComparison.OrdinalIgnoreCase));
                 return HookResult.Continue;
             }
         }
@@ -811,11 +803,7 @@ namespace src.player
 
             lock (setLock)
             {
-                string? button = Config.LoadedConfig.AlternativeSkillButton;
-                if (string.IsNullOrEmpty(button) || button.Length < 2) return;
-
-                string buttonName = $"{char.ToUpperInvariant(button[0])}{button[1..].ToLowerInvariant()}";
-                if (!Enum.TryParse<PlayerButtons>(buttonName, out var skillButton)) return;
+                if (!SkillButton.TryGet(out var skillButton)) return;
 
                 if ((pressed & skillButton) == 0) return;
 
@@ -835,6 +823,9 @@ namespace src.player
 
                     if (pawn.IsDefusing) return;
                     if (IsAimingAtPlantedBomb(player, pawn)) return;
+                    // E on a gun on the ground picks it up. The trace below only collides with the world, players
+                    // and NPCs, so its "weapon" check can miss a gun lying on the floor.
+                    if (IsAimingAtGroundWeapon(pawn)) return;
 
                     Vector eyePos = new(pawn.AbsOrigin.X, pawn.AbsOrigin.Y, pawn.AbsOrigin.Z + pawn.ViewOffset.Z);
                     Vector endPos = eyePos + SkillUtils.GetForwardVector(pawn.EyeAngles) * 80;
@@ -892,6 +883,39 @@ namespace src.player
                 float dot = (forward.X * dx + forward.Y * dy + forward.Z * dz) / distance;
 
                 if (dot >= BombBlockCos) return true;
+            }
+
+            return false;
+        }
+
+        private const float WeaponBlockRange = 100f;
+        private const float WeaponBlockCos = 0.8f;
+
+        /// <summary>A gun nobody holds, within reach in front of the eyes: E picks it up instead of firing the skill.</summary>
+        private static bool IsAimingAtGroundWeapon(CCSPlayerPawn pawn)
+        {
+            if (pawn.AbsOrigin == null) return false;
+
+            float eyeX = pawn.AbsOrigin.X;
+            float eyeY = pawn.AbsOrigin.Y;
+            float eyeZ = pawn.AbsOrigin.Z + pawn.ViewOffset.Z;
+            var forward = SkillUtils.GetForwardVector(pawn.EyeAngles);
+
+            foreach (var weapon in Utilities.FindAllEntitiesByDesignerName<CBasePlayerWeapon>("weapon_"))
+            {
+                if (weapon == null || !weapon.IsValid || weapon.AbsOrigin == null) continue;
+                if (!weapon.DesignerName.StartsWith("weapon_", StringComparison.Ordinal)) continue;
+                if (weapon.OwnerEntity.Value is { IsValid: true }) continue;
+
+                float dx = weapon.AbsOrigin.X - eyeX;
+                float dy = weapon.AbsOrigin.Y - eyeY;
+                float dz = weapon.AbsOrigin.Z - eyeZ;
+
+                float distance = MathF.Sqrt(dx * dx + dy * dy + dz * dz);
+                if (distance > WeaponBlockRange || distance <= 0.01f) continue;
+
+                float dot = (forward.X * dx + forward.Y * dy + forward.Z * dz) / distance;
+                if (dot >= WeaponBlockCos) return true;
             }
 
             return false;
