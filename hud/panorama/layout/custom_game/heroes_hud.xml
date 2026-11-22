@@ -1,0 +1,158 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/custom_game/hud_shared.vcss_c" />
+		<include src="s2r://panorama/styles/custom_game/heroes_hud.vcss_c" />
+	</styles>
+
+	<!--
+		Retake Heroes HUD - jRandomSkills' super powers as panels instead of center HTML.
+		The spec is previews/heroes (tabs Skill card, Spectating, Alerts, Coins, Skill colors).
+
+		  hr_card    the skill card, alive. Bottom center (p-bottom) or under the crosshair (p-cross).
+		             Draws the skill at round start, then its state: ready, cooldown, charges, fuel,
+		             toggle, a live value, planting, can't use it, disabled.  (was the center HTML
+		                                                                        every frame)
+		  hr_spec    one line on CS2's spectator bar: the skill of the player you watch, with their
+		             live state.                                               (was "Player's skill"
+		                                                                        center HTML)
+		  hr_alert   one banner, 5 seconds: bomb planted (Free Planter, Short Fuse), hot bomb, bomb
+		             cooled, site closed, Illiterate, an enemy skill used on you.  (was center alerts
+		                                                                        and red chat lines)
+		  hr_coins   a Coins pickup next to the money.                         (was center text)
+
+		NOT INTERACTIVE. hittest false everywhere; the plugin opens it with CaptureInput = false.
+
+		CONTRACT (src/hud/HeroesHud.cs must match)
+		  RootPanelId  = "HeroesRoot"   RevealClass = "show"   RowCount = 0
+		  CaptureInput = false          HideHud = None         SharedText = false
+
+		The root is full-screen and carries nothing visible itself; it is opened once per player and
+		stays open. Each panel has its own "show", and "hidden" (collapse) while it is not in use.
+
+		DIALOG VARIABLES
+		  hs_eyebrow hs_rar hs_team hs_via hs_name hs_desc hs_err hs_key hs_big hs_unit hs_tog hs_lbl
+		  sp_who sp_name sp_rar sp_via sp_desc sp_big sp_lbl
+		  al_eyebrow al_chip al_title al_sub al_num al_unit
+		  cn_amt cn_why
+
+		CLASSES THE SERVER TOGGLES
+		  hr_card    show hidden | p-bottom p-cross | h-<hue> (14) | k-<kind> (11)
+		             s-none s-ready s-cool s-on s-charges s-value s-toggle s-err s-draw
+		             off drawing fold track nokey has-pips | land-a land-b
+		  hs_rar     rar-0..rar-4          hs_team  tm-0 tm-2 tm-3        hs_via  none
+		  hs_key     dim | press-a press-b pop-a pop-b
+		  hs_big     v-good v-mid v-bad | pop-a pop-b
+		  hs_tog     t-off | pop-a pop-b
+		  hs_pip0..4 on cut
+		  hs_bar     at-0..at-50 (2% steps) | dur-q1..dur-q40 (0.25 s steps), dur-11..dur-60,
+		             dur-65..dur-180 | run-fill run-drain | ease | b-good b-mid b-bad b-draw
+		  hr_spec    show hidden | h-<hue> | k-<kind> | track | swap-a swap-b
+		  sp_rar     rar-0..rar-4          sp_via   none                  sp_state  none
+		  sp_big     v-good v-mid v-bad | pop-a pop-b
+		  sp_bar     as hs_bar
+		  hr_alert   show hidden | p-site p-card | c-bottom c-cross | no-num
+		             a-bomb a-hot a-ok a-site a-read a-hit
+		             i-planted i-c4 i-check i-sitea i-siteb i-ghost i-cross
+		  al_chip    none | h-<hue>        al_num   pop-a pop-b           al_bar  run
+		  hr_coins   show hidden | p-under p-beside | max
+		  cn_amt     pop-a pop-b
+
+		  <hue>  red orange amber yellow lime green teal cyan blue indigo violet pink white grey
+		  <kind> passive roll use charges fuel toggle live pick bomb coins draw
+	-->
+	<Panel class="hud-screen" hittest="false">
+		<Panel id="HeroesRoot" class="hr-root" hittest="false">
+
+			<!-- ======================================================= the skill card -->
+			<Panel id="hr_card" class="hr-slide hs p-bottom s-none k-passive h-white hidden" hittest="false">
+				<Panel class="hs-row" hittest="false">
+					<Panel class="hs-tile" hittest="false">
+						<Panel class="hs-ic" hittest="false" />
+					</Panel>
+					<Panel class="hs-main" hittest="false">
+						<Panel class="hs-top" hittest="false">
+							<Label class="hs-eyebrow" hittest="false" text="{s:hs_eyebrow}" />
+							<Label id="hs_rar" class="hr-chip rar-0" hittest="false" text="{s:hs_rar}" />
+							<Label id="hs_team" class="hr-chip tm-0" hittest="false" text="{s:hs_team}" />
+							<Label id="hs_via" class="hr-chip hr-via none" hittest="false" text="{s:hs_via}" />
+						</Panel>
+						<Label class="hs-name" hittest="false" text="{s:hs_name}" />
+						<Label class="hs-desc" hittest="false" text="{s:hs_desc}" />
+						<Label class="hs-err" hittest="false" text="{s:hs_err}" />
+					</Panel>
+					<Panel class="hs-state" hittest="false">
+						<Panel class="hs-srow" hittest="false">
+							<Label id="hs_key" class="hs-key" hittest="false" text="{s:hs_key}" />
+							<Panel id="hs_big" class="hs-big" hittest="false">
+								<Label class="hs-bign" hittest="false" text="{s:hs_big}" />
+								<Label class="hs-unit" hittest="false" text="{s:hs_unit}" />
+							</Panel>
+							<Label id="hs_tog" class="hs-tog" hittest="false" text="{s:hs_tog}" />
+						</Panel>
+						<Panel class="hs-pips" hittest="false">
+							<Panel id="hs_pip0" class="hs-pip" hittest="false" />
+							<Panel id="hs_pip1" class="hs-pip" hittest="false" />
+							<Panel id="hs_pip2" class="hs-pip" hittest="false" />
+							<Panel id="hs_pip3" class="hs-pip" hittest="false" />
+							<Panel id="hs_pip4" class="hs-pip" hittest="false" />
+						</Panel>
+						<Label class="hs-lbl" hittest="false" text="{s:hs_lbl}" />
+					</Panel>
+				</Panel>
+				<Panel class="hs-track" hittest="false">
+					<Panel id="hs_bar" class="hr-bar" hittest="false" />
+				</Panel>
+			</Panel>
+
+			<!-- ======================================================= spectating: the line on the spectator bar -->
+			<Panel id="hr_spec" class="hr-slide sp k-passive h-white hidden" hittest="false">
+				<Panel class="sp-row" hittest="false">
+					<Panel class="sp-ic" hittest="false" />
+					<Label class="sp-who" hittest="false" text="{s:sp_who}" />
+					<Label class="sp-name" hittest="false" text="{s:sp_name}" />
+					<Label id="sp_rar" class="hr-chip rar-0" hittest="false" text="{s:sp_rar}" />
+					<Label id="sp_via" class="hr-chip hr-via none" hittest="false" text="{s:sp_via}" />
+					<Label class="sp-desc" hittest="false" text="{s:sp_desc}" />
+					<Panel id="sp_state" class="sp-state none" hittest="false">
+						<Label id="sp_big" class="sp-big" hittest="false" text="{s:sp_big}" />
+						<Label class="sp-lbl" hittest="false" text="{s:sp_lbl}" />
+					</Panel>
+				</Panel>
+				<Panel class="sp-track" hittest="false">
+					<Panel id="sp_bar" class="hr-bar" hittest="false" />
+				</Panel>
+			</Panel>
+
+			<!-- ======================================================= the alert banner -->
+			<Panel id="hr_alert" class="hr-slide al p-site c-bottom a-bomb i-planted hidden" hittest="false">
+				<Panel class="al-row" hittest="false">
+					<Panel class="al-ic" hittest="false" />
+					<Panel class="al-main" hittest="false">
+						<Panel class="al-top" hittest="false">
+							<Label class="al-eyebrow" hittest="false" text="{s:al_eyebrow}" />
+							<Label id="al_chip" class="hr-chip al-chip none" hittest="false" text="{s:al_chip}" />
+						</Panel>
+						<Label class="al-title" hittest="false" text="{s:al_title}" />
+						<Label class="al-sub" hittest="false" text="{s:al_sub}" />
+					</Panel>
+					<Panel class="al-sep" hittest="false" />
+					<Panel class="al-num" hittest="false">
+						<Label id="al_num" class="al-n" hittest="false" text="{s:al_num}" />
+						<Label class="al-u" hittest="false" text="{s:al_unit}" />
+					</Panel>
+				</Panel>
+				<Panel class="al-track" hittest="false">
+					<Panel id="al_bar" class="al-bar" hittest="false" />
+				</Panel>
+			</Panel>
+
+			<!-- ======================================================= coins: next to the money -->
+			<Panel id="hr_coins" class="hr-slide cn p-under hidden" hittest="false">
+				<Panel class="cn-ic" hittest="false" />
+				<Label id="cn_amt" class="cn-amt" hittest="false" text="{s:cn_amt}" />
+				<Label class="cn-why" hittest="false" text="{s:cn_why}" />
+			</Panel>
+
+		</Panel>
+	</Panel>
+</root>

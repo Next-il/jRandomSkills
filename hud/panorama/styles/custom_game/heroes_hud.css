@@ -1,0 +1,1096 @@
+/*
+    heroes_hud - the Retake Heroes panels (jRandomSkills). Include hud_shared.vcss_c first.
+
+    Ported from the approved preview (previews/heroes: Skill card, Spectating, Alerts, Coins, Skill colors).
+    Sizes are 1080p pixels, the same numbers as the preview.
+
+    COLOURS ARE CLASSES. The server cannot send a colour, so a skill's colour is one of 14 readable hue
+    classes (h-red .. h-grey); the plugin maps each skill's configured hex to the nearest one. The icon is
+    one CS2 icon per kind of skill (k-passive .. k-draw), tinted with wash-color. Nothing new ships in the
+    addon: every image is CS2's own.
+
+    THE BARS are clips, never width (a width transition restarts whenever a label in the card is rewritten,
+    runtime-behaviour.md). Two ways to move one:
+      - a step: at-N (2% steps) with "ease", for values that change (fuel);
+      - a run: at-N with no duration snaps the start, then dur-* and run-fill / run-drain together let the
+        client run it to 100% or 0% on its own (cooldowns, the draw, planting). The plugin takes dur-* and
+        run-* off before the next snap so a reset snaps instead of running backwards.
+
+    UNVERIFIED IN GAME, each with a harmless failure:
+      - blur in transition-property: if blur does not animate, a panel is simply sharp at once.
+      - @keyframes (landing pop, key press, number pops, the spectator swap): without them the text just
+        changes in place.
+      - text-decoration: line-through on a disabled skill: without it the name is only grey.
+      - brightness in @keyframes (the landing flash): without it the landing is a scale pop only.
+*/
+
+/* ------------------------------------------------------------------ root */
+
+/* Opened once per player and left open; each panel carries its own "show". */
+.hr-root {
+    width: 100%;
+    height: 100%;
+    visibility: collapse;
+}
+.hr-root.show { visibility: visible; }
+
+/* Every panel fades, unblurs and slides in from its own edge. The transform is per panel. */
+.hr-slide {
+    opacity: 0;
+    blur: gaussian(7.0);
+    transition-property: opacity, transform, blur;
+    transition-duration: 0.3s, 0.34s, 0.3s;
+    transition-timing-function: ease-out, cubic-bezier( 0.2, 0.8, 0.25, 1.0 ), ease-out;
+}
+/* Entering is quicker than leaving: the transition on the state being entered is the one that plays. */
+.hr-slide.show {
+    opacity: 1;
+    blur: gaussian(0.0);
+    transition-duration: 0.18s, 0.22s, 0.18s;
+}
+
+/* ------------------------------------------------------------------ chips */
+
+.hr-chip {
+    font-family: Stratum2 Mono;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 0.8px;
+    text-transform: uppercase;
+    line-height: 10px;
+    padding: 2px 4px 1px 4px;
+    margin-left: 5px;
+    vertical-align: center;
+    white-space: nowrap;
+}
+/* Rarity, in CS2's case colours. Common is most skills and gets no chip. */
+.hr-chip.rar-0 { visibility: collapse; }
+.hr-chip.rar-1 { color: #0b0e12; background-color: #5e98d9; }
+.hr-chip.rar-2 { color: #ffffff; background-color: #4b69ff; }
+.hr-chip.rar-3 { color: #ffffff; background-color: #8847ff; }
+.hr-chip.rar-4 { color: #0b0e12; background-color: #e4ae39; }
+/* One team only. */
+.hr-chip.tm-0 { visibility: collapse; }
+.hr-chip.tm-2 { color: #e0b44a; background-color: #e0b44a1f; }
+.hr-chip.tm-3 { color: #5b9bd5; background-color: #5b9bd51f; }
+/* "via Thief": a copied skill. Coloured by the card's hue below. */
+.hr-chip.none { visibility: collapse; }
+
+/* ------------------------------------------------------------------ the skill card */
+
+.hs {
+    horizontal-align: center;
+    vertical-align: bottom;
+    margin-bottom: 22px;
+    width: 448px;
+    flow-children: down;
+    border-top: 2px solid #e8ebee;
+    world-blur: gaussian(8.0);
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ee2), to(#0b0f14ec));
+    transform: translateY(44px);
+}
+.hs.show { transform: translateY(0px); }
+/* Under the crosshair, where the center text is today. */
+.hs.p-cross {
+    vertical-align: top;
+    margin-bottom: 0px;
+    margin-top: 690px;
+    transform: translateY(24px);
+}
+.hs.p-cross.show { transform: translateY(0px); }
+
+/* The row holds the padding, so the track below runs the card's full width at its bottom edge. */
+.hs-row {
+    width: 100%;
+    flow-children: right;
+    padding: 10px 14px 9px 10px;
+}
+
+.hs-tile {
+    width: 46px;
+    height: 46px;
+    vertical-align: center;
+    background-color: #e8ebee1f;
+}
+.hs-ic {
+    width: 26px;
+    height: 26px;
+    horizontal-align: center;
+    vertical-align: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    /* The icons are SVGs; rasterize at 2x the drawn size so 1440p and 4K stay sharp. */
+    background-texture-size: 52px 52px;
+    wash-color: #e8ebee;
+}
+
+.hs-main {
+    width: fill-parent-flow(1.0);
+    flow-children: down;
+    vertical-align: center;
+    margin-left: 12px;
+}
+.hs-top {
+    flow-children: right;
+    height: 12px;
+}
+.hs-eyebrow {
+    font-family: Stratum2 Mono;
+    font-size: 8.5px;
+    font-weight: bold;
+    letter-spacing: 1.8px;
+    text-transform: uppercase;
+    color: #8b939c;
+    margin-right: 2px;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.hs-name {
+    width: 100%;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 23px;
+    font-weight: bold;
+    letter-spacing: 0.6px;
+    line-height: 24px;
+    text-transform: uppercase;
+    color: #e8ebee;
+    margin-top: 3px;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+    transform-origin: 0% 60%;
+    transition-property: color;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+}
+/* Two lines at most; the rest ends in an ellipsis. */
+.hs-desc {
+    width: 100%;
+    max-height: 30px;
+    font-family: Stratum2 Regular;
+    font-size: 11.5px;
+    line-height: 15px;
+    color: #aeb5bc;
+    margin-top: 2px;
+    white-space: normal;
+    text-overflow: ellipsis;
+}
+.hs-err {
+    width: 100%;
+    max-height: 30px;
+    font-family: Stratum2 Regular;
+    font-size: 11.5px;
+    font-weight: bold;
+    line-height: 15px;
+    color: #ff8270;
+    margin-top: 2px;
+    white-space: normal;
+    text-overflow: ellipsis;
+    visibility: collapse;
+}
+
+/* The state block on the right: what shows depends on one s-* class. */
+.hs-state {
+    flow-children: down;
+    vertical-align: center;
+    min-width: 56px;
+    margin-left: 12px;
+}
+.hs-srow {
+    flow-children: right;
+    horizontal-align: right;
+}
+.hs-key {
+    min-width: 24px;
+    height: 24px;
+    padding: 0px 6px;
+    font-family: Stratum2 Mono;
+    font-size: 12px;
+    font-weight: bold;
+    line-height: 24px;
+    text-align: center;
+    vertical-align: center;
+    color: #14181d;
+    background-color: #e8ebee;
+    transition-property: opacity, background-color;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+}
+.hs-key.dim { opacity: 0.35; }
+.hs-big {
+    flow-children: right;
+    vertical-align: center;
+    margin-left: 7px;
+    transform-origin: 100% 60%;
+}
+.hs-bign {
+    font-family: Stratum2 Medium Condensed;
+    font-size: 27px;
+    font-weight: bold;
+    line-height: 25px;
+    color: #ffffff;
+    white-space: nowrap;
+}
+.hs-unit {
+    font-family: Stratum2 Medium Condensed;
+    font-size: 14px;
+    color: #8b939c;
+    margin-left: 1px;
+    margin-bottom: 1px;
+    vertical-align: bottom;
+}
+.hs-big.v-good .hs-bign { color: #7fd492; }
+.hs-big.v-mid .hs-bign  { color: #f0c94a; }
+.hs-big.v-bad .hs-bign  { color: #ff8270; }
+.hs-tog {
+    font-family: Stratum2 Mono;
+    font-size: 11px;
+    font-weight: bold;
+    letter-spacing: 1px;
+    padding: 4px 7px 3px 7px;
+    margin-left: 7px;
+    vertical-align: center;
+    color: #0b0e12;
+    background-color: #7fd492;
+}
+.hs-tog.t-off { background-color: #ff8270; }
+.hs-pips {
+    flow-children: right;
+    horizontal-align: right;
+    margin-top: 5px;
+    padding-right: 2px;
+}
+.hs-pip {
+    width: 9px;
+    height: 9px;
+    margin-left: 3px;
+    background-color: #ffffff1f;
+    transition-property: background-color;
+    transition-duration: 0.2s;
+    transition-timing-function: ease-out;
+}
+.hs-pip.cut { visibility: collapse; }
+.hs-lbl {
+    horizontal-align: right;
+    margin-top: 5px;
+    font-family: Stratum2 Mono;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #8b939c;
+    white-space: nowrap;
+}
+
+/* The bar along the bottom edge. Always in layout so the card keeps its height; shown with "track". */
+.hs-track {
+    width: 100%;
+    height: 3px;
+    background-color: #ffffff0d;
+    opacity: 0;
+}
+.hs.track .hs-track { opacity: 1; }
+
+
+/* ------------------------------------------------------------------ card states */
+
+.hs-key, .hs-big, .hs-tog, .hs-pips, .hs-lbl { visibility: collapse; }
+
+.hs.s-ready .hs-key,
+.hs.s-ready .hs-lbl { visibility: visible; }
+
+.hs.s-cool .hs-big, .hs.s-cool .hs-lbl,
+.hs.s-on .hs-big, .hs.s-on .hs-lbl,
+.hs.s-value .hs-big, .hs.s-value .hs-lbl,
+.hs.s-draw .hs-big, .hs.s-draw .hs-lbl { visibility: visible; }
+
+.hs.s-charges .hs-key,
+.hs.s-charges .hs-big,
+.hs.s-charges .hs-pips { visibility: visible; }
+.hs.s-charges .hs-bign { font-size: 22px; }
+
+.hs.s-toggle .hs-tog,
+.hs.s-toggle .hs-lbl { visibility: visible; }
+
+.hs.s-on .hs-lbl { color: #7fd492; }
+
+/* Can't use it: the key turns red and the reason takes the description's place. */
+.hs.s-err .hs-key { visibility: visible; background-color: #ff8270; }
+.hs.s-err .hs-desc { visibility: collapse; }
+.hs.s-err .hs-err { visibility: visible; }
+
+.hs.s-none .hs-state { visibility: collapse; }
+
+/* A level without a number (Partner). */
+.hs.has-pips .hs-pips { visibility: visible; }
+
+/* Description folded after the plugin's description time (Hud.Description = Fold). */
+.hs.fold .hs-desc { visibility: collapse; }
+
+/* Drawing: no rarity or team chip while the names roll. */
+.hs.drawing .hr-chip { visibility: collapse; }
+
+/* A skill that is not used with a key, or no key configured: never a key chip. */
+.hs.nokey .hs-key { visibility: collapse; }
+
+
+/* ------------------------------------------------------------------ skill colours: 14 classes */
+
+.h-red.hs, .h-red.sp { border-top-color: #ff6b5e; }
+.h-red .hs-tile { background-color: #ff6b5e26; }
+.h-red .hs-ic, .h-red .sp-ic { wash-color: #ff6b5e; }
+.h-red .hs-name, .h-red .sp-name { color: #ff6b5e; }
+.h-red .hr-bar, .h-red .hs-pip.on { background-color: #ff6b5e; }
+.h-red.s-ready .hs-lbl, .h-red.s-charges .hs-lbl { color: #ff6b5e; }
+.h-red .hr-via, .hr-chip.h-red { color: #ff6b5e; background-color: #ff6b5e26; }
+
+.h-orange.hs, .h-orange.sp { border-top-color: #ff9a4a; }
+.h-orange .hs-tile { background-color: #ff9a4a26; }
+.h-orange .hs-ic, .h-orange .sp-ic { wash-color: #ff9a4a; }
+.h-orange .hs-name, .h-orange .sp-name { color: #ff9a4a; }
+.h-orange .hr-bar, .h-orange .hs-pip.on { background-color: #ff9a4a; }
+.h-orange.s-ready .hs-lbl, .h-orange.s-charges .hs-lbl { color: #ff9a4a; }
+.h-orange .hr-via, .hr-chip.h-orange { color: #ff9a4a; background-color: #ff9a4a26; }
+
+.h-amber.hs, .h-amber.sp { border-top-color: #f5c04a; }
+.h-amber .hs-tile { background-color: #f5c04a26; }
+.h-amber .hs-ic, .h-amber .sp-ic { wash-color: #f5c04a; }
+.h-amber .hs-name, .h-amber .sp-name { color: #f5c04a; }
+.h-amber .hr-bar, .h-amber .hs-pip.on { background-color: #f5c04a; }
+.h-amber.s-ready .hs-lbl, .h-amber.s-charges .hs-lbl { color: #f5c04a; }
+.h-amber .hr-via, .hr-chip.h-amber { color: #f5c04a; background-color: #f5c04a26; }
+
+.h-yellow.hs, .h-yellow.sp { border-top-color: #e6e15a; }
+.h-yellow .hs-tile { background-color: #e6e15a26; }
+.h-yellow .hs-ic, .h-yellow .sp-ic { wash-color: #e6e15a; }
+.h-yellow .hs-name, .h-yellow .sp-name { color: #e6e15a; }
+.h-yellow .hr-bar, .h-yellow .hs-pip.on { background-color: #e6e15a; }
+.h-yellow.s-ready .hs-lbl, .h-yellow.s-charges .hs-lbl { color: #e6e15a; }
+.h-yellow .hr-via, .hr-chip.h-yellow { color: #e6e15a; background-color: #e6e15a26; }
+
+.h-lime.hs, .h-lime.sp { border-top-color: #a6e05a; }
+.h-lime .hs-tile { background-color: #a6e05a26; }
+.h-lime .hs-ic, .h-lime .sp-ic { wash-color: #a6e05a; }
+.h-lime .hs-name, .h-lime .sp-name { color: #a6e05a; }
+.h-lime .hr-bar, .h-lime .hs-pip.on { background-color: #a6e05a; }
+.h-lime.s-ready .hs-lbl, .h-lime.s-charges .hs-lbl { color: #a6e05a; }
+.h-lime .hr-via, .hr-chip.h-lime { color: #a6e05a; background-color: #a6e05a26; }
+
+.h-green.hs, .h-green.sp { border-top-color: #5fd77a; }
+.h-green .hs-tile { background-color: #5fd77a26; }
+.h-green .hs-ic, .h-green .sp-ic { wash-color: #5fd77a; }
+.h-green .hs-name, .h-green .sp-name { color: #5fd77a; }
+.h-green .hr-bar, .h-green .hs-pip.on { background-color: #5fd77a; }
+.h-green.s-ready .hs-lbl, .h-green.s-charges .hs-lbl { color: #5fd77a; }
+.h-green .hr-via, .hr-chip.h-green { color: #5fd77a; background-color: #5fd77a26; }
+
+.h-teal.hs, .h-teal.sp { border-top-color: #3fdcbf; }
+.h-teal .hs-tile { background-color: #3fdcbf26; }
+.h-teal .hs-ic, .h-teal .sp-ic { wash-color: #3fdcbf; }
+.h-teal .hs-name, .h-teal .sp-name { color: #3fdcbf; }
+.h-teal .hr-bar, .h-teal .hs-pip.on { background-color: #3fdcbf; }
+.h-teal.s-ready .hs-lbl, .h-teal.s-charges .hs-lbl { color: #3fdcbf; }
+.h-teal .hr-via, .hr-chip.h-teal { color: #3fdcbf; background-color: #3fdcbf26; }
+
+.h-cyan.hs, .h-cyan.sp { border-top-color: #4fd3f0; }
+.h-cyan .hs-tile { background-color: #4fd3f026; }
+.h-cyan .hs-ic, .h-cyan .sp-ic { wash-color: #4fd3f0; }
+.h-cyan .hs-name, .h-cyan .sp-name { color: #4fd3f0; }
+.h-cyan .hr-bar, .h-cyan .hs-pip.on { background-color: #4fd3f0; }
+.h-cyan.s-ready .hs-lbl, .h-cyan.s-charges .hs-lbl { color: #4fd3f0; }
+.h-cyan .hr-via, .hr-chip.h-cyan { color: #4fd3f0; background-color: #4fd3f026; }
+
+.h-blue.hs, .h-blue.sp { border-top-color: #6aa8ff; }
+.h-blue .hs-tile { background-color: #6aa8ff26; }
+.h-blue .hs-ic, .h-blue .sp-ic { wash-color: #6aa8ff; }
+.h-blue .hs-name, .h-blue .sp-name { color: #6aa8ff; }
+.h-blue .hr-bar, .h-blue .hs-pip.on { background-color: #6aa8ff; }
+.h-blue.s-ready .hs-lbl, .h-blue.s-charges .hs-lbl { color: #6aa8ff; }
+.h-blue .hr-via, .hr-chip.h-blue { color: #6aa8ff; background-color: #6aa8ff26; }
+
+.h-indigo.hs, .h-indigo.sp { border-top-color: #8f8cff; }
+.h-indigo .hs-tile { background-color: #8f8cff26; }
+.h-indigo .hs-ic, .h-indigo .sp-ic { wash-color: #8f8cff; }
+.h-indigo .hs-name, .h-indigo .sp-name { color: #8f8cff; }
+.h-indigo .hr-bar, .h-indigo .hs-pip.on { background-color: #8f8cff; }
+.h-indigo.s-ready .hs-lbl, .h-indigo.s-charges .hs-lbl { color: #8f8cff; }
+.h-indigo .hr-via, .hr-chip.h-indigo { color: #8f8cff; background-color: #8f8cff26; }
+
+.h-violet.hs, .h-violet.sp { border-top-color: #b77cff; }
+.h-violet .hs-tile { background-color: #b77cff26; }
+.h-violet .hs-ic, .h-violet .sp-ic { wash-color: #b77cff; }
+.h-violet .hs-name, .h-violet .sp-name { color: #b77cff; }
+.h-violet .hr-bar, .h-violet .hs-pip.on { background-color: #b77cff; }
+.h-violet.s-ready .hs-lbl, .h-violet.s-charges .hs-lbl { color: #b77cff; }
+.h-violet .hr-via, .hr-chip.h-violet { color: #b77cff; background-color: #b77cff26; }
+
+.h-pink.hs, .h-pink.sp { border-top-color: #f27ad6; }
+.h-pink .hs-tile { background-color: #f27ad626; }
+.h-pink .hs-ic, .h-pink .sp-ic { wash-color: #f27ad6; }
+.h-pink .hs-name, .h-pink .sp-name { color: #f27ad6; }
+.h-pink .hr-bar, .h-pink .hs-pip.on { background-color: #f27ad6; }
+.h-pink.s-ready .hs-lbl, .h-pink.s-charges .hs-lbl { color: #f27ad6; }
+.h-pink .hr-via, .hr-chip.h-pink { color: #f27ad6; background-color: #f27ad626; }
+
+.h-white.hs, .h-white.sp { border-top-color: #e8ebee; }
+.h-white .hs-tile { background-color: #e8ebee1f; }
+.h-white .hs-ic, .h-white .sp-ic { wash-color: #e8ebee; }
+.h-white .hs-name, .h-white .sp-name { color: #e8ebee; }
+.h-white .hr-bar, .h-white .hs-pip.on { background-color: #e8ebee; }
+.h-white.s-ready .hs-lbl, .h-white.s-charges .hs-lbl { color: #e8ebee; }
+.h-white .hr-via, .hr-chip.h-white { color: #e8ebee; background-color: #e8ebee1f; }
+
+.h-grey.hs, .h-grey.sp { border-top-color: #a9b1ba; }
+.h-grey .hs-tile { background-color: #a9b1ba1f; }
+.h-grey .hs-ic, .h-grey .sp-ic { wash-color: #a9b1ba; }
+.h-grey .hs-name, .h-grey .sp-name { color: #a9b1ba; }
+.h-grey .hr-bar, .h-grey .hs-pip.on { background-color: #a9b1ba; }
+.h-grey.s-ready .hs-lbl, .h-grey.s-charges .hs-lbl { color: #a9b1ba; }
+.h-grey .hr-via, .hr-chip.h-grey { color: #a9b1ba; background-color: #a9b1ba1f; }
+
+/* Bar tones win over the hue: same specificity, later rule. */
+.hr-bar.b-good { background-color: #7fd492; }
+.hr-bar.b-mid  { background-color: #f0c94a; }
+.hr-bar.b-bad  { background-color: #ff8270; }
+.hr-bar.b-draw { background-color: #e8ebee8c; }
+
+/* Disabled by an enemy (Deactivator, Thief): grey, struck through, after the hues so it wins. */
+.hs.off { border-top-color: #6c747d; }
+.hs.off .hs-tile { background-color: #ffffff0a; }
+.hs.off .hs-ic { wash-color: #6c747d; }
+.hs.off .hs-name { color: #6c747d; text-decoration: line-through; }
+.hs.off .hs-lbl { visibility: visible; color: #ff8270; }
+.hs.off .hs-err { color: #9aa2ac; font-weight: normal; }
+.hs.off .hs-key,
+.hs.off .hs-big,
+.hs.off .hs-pips,
+.hs.off .hs-tog { visibility: collapse; }
+.hs.off .hs-track { opacity: 0; }
+
+
+/* ------------------------------------------------------------------ icons: one CS2 icon per kind of skill */
+
+.k-passive .hs-ic, .k-passive .sp-ic { background-image: url("s2r://panorama/images/icons/ui/pet_effect_sparks.vsvg"); }
+.k-roll .hs-ic, .k-roll .sp-ic { background-image: url("s2r://panorama/images/icons/ui/random.vsvg"); }
+.k-use .hs-ic, .k-use .sp-ic { background-image: url("s2r://panorama/images/icons/ui/pet_effect_lightning.vsvg"); }
+.k-charges .hs-ic, .k-charges .sp-ic { background-image: url("s2r://panorama/images/icons/equipment/healthshot.vsvg"); }
+.k-charges .hs-ic { width: 30px; height: 22px; background-texture-size: 60px 44px; }
+.k-charges .sp-ic { width: 18px; height: 13px; background-texture-size: 36px 26px; }
+.k-fuel .hs-ic, .k-fuel .sp-ic { background-image: url("s2r://panorama/images/icons/ui/power.vsvg"); }
+.k-toggle .hs-ic, .k-toggle .sp-ic { background-image: url("s2r://panorama/images/icons/ui/timer.vsvg"); }
+.k-live .hs-ic, .k-live .sp-ic { background-image: url("s2r://panorama/images/icons/ui/crosshair.vsvg"); }
+.k-pick .hs-ic, .k-pick .sp-ic { background-image: url("s2r://panorama/images/icons/ui/player.vsvg"); }
+.k-bomb .hs-ic, .k-bomb .sp-ic { background-image: url("s2r://panorama/images/icons/equipment/c4.vsvg"); }
+.k-coins .hs-ic, .k-coins .sp-ic { background-image: url("s2r://panorama/images/icons/ui/coin_stack.vsvg"); }
+.k-draw .hs-ic, .k-draw .sp-ic { background-image: url("s2r://panorama/images/icons/ui/random.vsvg"); }
+
+/* ------------------------------------------------------------------ motion: every restart ping-pongs two names */
+
+@keyframes 'hs-land-a' {
+    0%   { transform: scale3d(1.32, 1.32, 1.0); brightness: 2.4; }
+    55%  { transform: scale3d(0.96, 0.96, 1.0); }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+@keyframes 'hs-land-b' {
+    0%   { transform: scale3d(1.32, 1.32, 1.0); brightness: 2.4; }
+    55%  { transform: scale3d(0.96, 0.96, 1.0); }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+.hs.land-a .hs-name {
+    animation-name: hs-land-a;
+    animation-duration: 0.5s;
+    animation-timing-function: cubic-bezier( 0.2, 0.8, 0.2, 1.0 );
+    animation-iteration-count: 1;
+}
+.hs.land-b .hs-name {
+    animation-name: hs-land-b;
+    animation-duration: 0.5s;
+    animation-timing-function: cubic-bezier( 0.2, 0.8, 0.2, 1.0 );
+    animation-iteration-count: 1;
+}
+
+/* The tile flashes in the skill's colour: a brightness flash, since a keyframe cannot name a hue class. */
+@keyframes 'hs-tile-a' { 0% { brightness: 3.0; } 100% { brightness: 1.0; } }
+@keyframes 'hs-tile-b' { 0% { brightness: 3.0; } 100% { brightness: 1.0; } }
+.hs.land-a .hs-tile {
+    animation-name: hs-tile-a;
+    animation-duration: 0.6s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+.hs.land-b .hs-tile {
+    animation-name: hs-tile-b;
+    animation-duration: 0.6s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+
+/* A number or a chip that changed. */
+@keyframes 'hr-pop-a' { 0% { transform: scale3d(1.3, 1.3, 1.0); } 100% { transform: scale3d(1.0, 1.0, 1.0); } }
+@keyframes 'hr-pop-b' { 0% { transform: scale3d(1.3, 1.3, 1.0); } 100% { transform: scale3d(1.0, 1.0, 1.0); } }
+.pop-a {
+    animation-name: hr-pop-a;
+    animation-duration: 0.4s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+.pop-b {
+    animation-name: hr-pop-b;
+    animation-duration: 0.4s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+
+/* The key, pressed. */
+@keyframes 'hs-press-a' {
+    0%   { transform: scale3d(0.8, 0.8, 1.0); brightness: 1.6; }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+@keyframes 'hs-press-b' {
+    0%   { transform: scale3d(0.8, 0.8, 1.0); brightness: 1.6; }
+    100% { transform: scale3d(1.0, 1.0, 1.0); brightness: 1.0; }
+}
+.hs-key.press-a {
+    animation-name: hs-press-a;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+.hs-key.press-b {
+    animation-name: hs-press-b;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+
+
+/* ------------------------------------------------------------------ spectating: one line on CS2's spectator bar */
+
+.sp {
+    horizontal-align: center;
+    vertical-align: bottom;
+    margin-bottom: 99px;
+    width: 560px;
+    height: 30px;
+    flow-children: down;
+    background-color: #0b0f12cc;
+    border-top: 2px solid #e8ebee;
+    transform: translateY(14px);
+}
+.sp.show { transform: translateY(0px); }
+.sp-row {
+    width: 100%;
+    height: 26px;
+    flow-children: right;
+    padding: 0px 12px 0px 10px;
+}
+.sp-ic {
+    width: 15px;
+    height: 15px;
+    vertical-align: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-texture-size: 30px 30px;
+    wash-color: #e8ebee;
+}
+.sp-who {
+    margin-left: 8px;
+    font-family: Stratum2 Mono;
+    font-size: 8.5px;
+    font-weight: bold;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    color: #8b939c;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.sp-name {
+    margin-left: 8px;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 16px;
+    font-weight: bold;
+    letter-spacing: 0.5px;
+    text-transform: uppercase;
+    color: #e8ebee;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.sp .hr-chip { margin-left: 8px; }
+.sp-desc {
+    width: fill-parent-flow(1.0);
+    margin-left: 8px;
+    font-family: Stratum2 Regular;
+    font-size: 11px;
+    color: #9aa2ac;
+    vertical-align: center;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+}
+.sp-state {
+    flow-children: right;
+    margin-left: 8px;
+    vertical-align: center;
+}
+.sp-state.none { visibility: collapse; }
+.sp-big {
+    font-family: Stratum2 Medium Condensed;
+    font-size: 15px;
+    font-weight: bold;
+    color: #ffffff;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.sp-big.v-good { color: #7fd492; }
+.sp-big.v-mid  { color: #f0c94a; }
+.sp-big.v-bad  { color: #ff8270; }
+.sp-lbl {
+    margin-left: 5px;
+    font-family: Stratum2 Mono;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #8b939c;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.sp-track {
+    width: 100%;
+    height: 2px;
+    opacity: 0;
+}
+.sp.track .sp-track { opacity: 1; }
+
+@keyframes 'sp-swap-a' { 0% { opacity: 0.2; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0px); } }
+@keyframes 'sp-swap-b' { 0% { opacity: 0.2; transform: translateY(5px); } 100% { opacity: 1; transform: translateY(0px); } }
+.sp.swap-a .sp-name, .sp.swap-a .sp-desc, .sp.swap-a .sp-state {
+    animation-name: sp-swap-a;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+.sp.swap-b .sp-name, .sp.swap-b .sp-desc, .sp.swap-b .sp-state {
+    animation-name: sp-swap-b;
+    animation-duration: 0.3s;
+    animation-timing-function: ease-out;
+    animation-iteration-count: 1;
+}
+
+
+/* ------------------------------------------------------------------ the alert banner */
+
+/* Under the Retakes site panel (78px + its height): Instaplant plants at round start, while it is up. */
+.al {
+    horizontal-align: center;
+    vertical-align: top;
+    margin-top: 164px;
+    width: 420px;
+    flow-children: down;
+    border-top: 2px solid #e8543f;
+    world-blur: gaussian(8.0);
+    background-color: gradient(linear, 0% 0%, 0% 100%, from(#12171ee2), to(#0b0f14ec));
+    transform: translateY(-26px);
+}
+.al.show { transform: translateY(0px); }
+/* Above the skill card: every Heroes panel in one place. */
+.al.p-card {
+    vertical-align: bottom;
+    margin-top: 0px;
+    margin-bottom: 116px;
+    transform: translateY(26px);
+}
+.al.p-card.c-cross {
+    vertical-align: top;
+    margin-top: 612px;
+    margin-bottom: 0px;
+}
+.al.p-card.show { transform: translateY(0px); }
+
+.al-row {
+    width: 100%;
+    flow-children: right;
+    padding: 9px 16px 9px 12px;
+}
+.al-ic {
+    width: 28px;
+    height: 28px;
+    vertical-align: center;
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-texture-size: 56px 56px;
+    wash-color: #e8543f;
+}
+.al-main {
+    width: fill-parent-flow(1.0);
+    flow-children: down;
+    vertical-align: center;
+    margin-left: 12px;
+}
+.al-top {
+    flow-children: right;
+    height: 12px;
+}
+.al-eyebrow {
+    font-family: Stratum2 Mono;
+    font-size: 8.5px;
+    font-weight: bold;
+    letter-spacing: 2px;
+    text-transform: uppercase;
+    color: #e8543f;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.al .hr-chip { margin-left: 6px; }
+.al-title {
+    width: 100%;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 20px;
+    font-weight: bold;
+    letter-spacing: 0.6px;
+    line-height: 21px;
+    text-transform: uppercase;
+    color: #ffffff;
+    margin-top: 3px;
+    white-space: normal;
+}
+.al-sub {
+    width: 100%;
+    font-family: Stratum2 Regular;
+    font-size: 11px;
+    color: #9aa2ac;
+    margin-top: 2px;
+    white-space: normal;
+}
+.al-sep {
+    width: 1px;
+    height: 40px;
+    margin: 0px 12px;
+    vertical-align: center;
+    background-color: #ffffff16;
+}
+.al-num {
+    flow-children: down;
+    min-width: 40px;
+    vertical-align: center;
+}
+.al-n {
+    horizontal-align: center;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 30px;
+    font-weight: bold;
+    line-height: 28px;
+    color: #e8543f;
+}
+.al-u {
+    horizontal-align: center;
+    margin-top: 2px;
+    font-family: Stratum2 Mono;
+    font-size: 8px;
+    font-weight: bold;
+    letter-spacing: 1.4px;
+    color: #6c747d;
+}
+.al.no-num .al-num,
+.al.no-num .al-sep { visibility: collapse; }
+
+.al-track {
+    width: 100%;
+    height: 2px;
+}
+/* Full at rest; "run" drains it in 5 seconds, the time the banner shows. */
+.al-bar {
+    width: 100%;
+    height: 100%;
+    background-color: #e8543f;
+    clip: rect( 0%, 100%, 100%, 0% );
+    transition-property: clip;
+    transition-duration: 0.0s;
+    transition-timing-function: linear;
+}
+.al-bar.run {
+    clip: rect( 0%, 0%, 100%, 0% );
+    transition-duration: 5.0s;
+}
+
+.al.a-bomb { border-top-color: #e8543f; }
+.a-bomb .al-ic { wash-color: #e8543f; }
+.a-bomb .al-eyebrow, .a-bomb .al-n { color: #e8543f; }
+.a-bomb .al-bar { background-color: #e8543f; }
+.al.a-hot { border-top-color: #ff9a4a; }
+.a-hot .al-ic { wash-color: #ff9a4a; }
+.a-hot .al-eyebrow, .a-hot .al-n { color: #ff9a4a; }
+.a-hot .al-bar { background-color: #ff9a4a; }
+.al.a-ok { border-top-color: #4caf6d; }
+.a-ok .al-ic { wash-color: #4caf6d; }
+.a-ok .al-eyebrow, .a-ok .al-n { color: #4caf6d; }
+.a-ok .al-bar { background-color: #4caf6d; }
+.al.a-site { border-top-color: #f0a531; }
+.a-site .al-ic { wash-color: #f0a531; }
+.a-site .al-eyebrow, .a-site .al-n { color: #f0a531; }
+.a-site .al-bar { background-color: #f0a531; }
+.al.a-read { border-top-color: #b77cff; }
+.a-read .al-ic { wash-color: #b77cff; }
+.a-read .al-eyebrow, .a-read .al-n { color: #b77cff; }
+.a-read .al-bar { background-color: #b77cff; }
+.al.a-hit { border-top-color: #ff6b8a; }
+.a-hit .al-ic { wash-color: #ff6b8a; }
+.a-hit .al-eyebrow, .a-hit .al-n { color: #ff6b8a; }
+.a-hit .al-bar { background-color: #ff6b8a; }
+
+.i-planted .al-ic { background-image: url("s2r://panorama/images/icons/equipment/planted_c4.vsvg"); width: 28px; height: 27px; background-texture-size: 56px 54px; }
+.i-c4 .al-ic { background-image: url("s2r://panorama/images/icons/equipment/c4.vsvg"); }
+.i-check .al-ic { background-image: url("s2r://panorama/images/icons/ui/check.vsvg"); }
+.i-sitea .al-ic { background-image: url("s2r://panorama/images/icons/ui/map_bombzone_a.vsvg"); }
+.i-siteb .al-ic { background-image: url("s2r://panorama/images/icons/ui/map_bombzone_b.vsvg"); }
+.i-ghost .al-ic { background-image: url("s2r://panorama/images/icons/ui/map_ghost.vsvg"); }
+.i-cross .al-ic { background-image: url("s2r://panorama/images/icons/ui/crosshair.vsvg"); }
+
+/* ------------------------------------------------------------------ coins: next to the money */
+
+/* In CS2's money green, not the Store's mint: this is game money, not credits. */
+.cn {
+    horizontal-align: left;
+    vertical-align: top;
+    margin-left: 22px;
+    margin-top: 338px;
+    height: 28px;
+    flow-children: right;
+    padding: 0px 11px 0px 8px;
+    background-color: #0b0f14c4;
+    transform: translateX(-60px);
+}
+.cn.show { transform: translateX(0px); }
+.cn.p-beside {
+    margin-left: 130px;
+    margin-top: 297px;
+}
+.cn-ic {
+    width: 18px;
+    height: 18px;
+    vertical-align: center;
+    background-image: url("s2r://panorama/images/icons/ui/coin_stack.vsvg");
+    background-size: 100% 100%;
+    background-repeat: no-repeat;
+    background-position: 50% 50%;
+    background-texture-size: 36px 36px;
+    wash-color: #8fd16a;
+}
+.cn-amt {
+    margin-left: 7px;
+    font-family: Stratum2 Medium Condensed;
+    font-size: 20px;
+    font-weight: bold;
+    color: #8fd16a;
+    vertical-align: center;
+    transform-origin: 0% 60%;
+    white-space: nowrap;
+}
+.cn-why {
+    margin-left: 7px;
+    font-family: Stratum2 Mono;
+    font-size: 9px;
+    font-weight: bold;
+    letter-spacing: 1.2px;
+    text-transform: uppercase;
+    color: #aeb5bc;
+    vertical-align: center;
+    white-space: nowrap;
+}
+.cn.max .cn-amt { color: #8b939c; }
+.cn.max .cn-ic { wash-color: #8b939c; }
+
+
+/* ------------------------------------------------------------------ the bar: card and spectator line */
+
+/* Empty by default with no duration, so taking "run" and dur-* off snaps it instead of animating. */
+.hr-bar {
+    width: 100%;
+    height: 100%;
+    background-color: #e8ebee;
+    clip: rect( 0%, 0%, 100%, 0% );
+    transition-property: clip;
+    transition-duration: 0.0s;
+    transition-timing-function: linear;
+}
+
+/* Where it is, in 2% steps. */
+.hr-bar.at-0 { clip: rect( 0%, 0%, 100%, 0% ); }
+.hr-bar.at-1 { clip: rect( 0%, 2%, 100%, 0% ); }
+.hr-bar.at-2 { clip: rect( 0%, 4%, 100%, 0% ); }
+.hr-bar.at-3 { clip: rect( 0%, 6%, 100%, 0% ); }
+.hr-bar.at-4 { clip: rect( 0%, 8%, 100%, 0% ); }
+.hr-bar.at-5 { clip: rect( 0%, 10%, 100%, 0% ); }
+.hr-bar.at-6 { clip: rect( 0%, 12%, 100%, 0% ); }
+.hr-bar.at-7 { clip: rect( 0%, 14%, 100%, 0% ); }
+.hr-bar.at-8 { clip: rect( 0%, 16%, 100%, 0% ); }
+.hr-bar.at-9 { clip: rect( 0%, 18%, 100%, 0% ); }
+.hr-bar.at-10 { clip: rect( 0%, 20%, 100%, 0% ); }
+.hr-bar.at-11 { clip: rect( 0%, 22%, 100%, 0% ); }
+.hr-bar.at-12 { clip: rect( 0%, 24%, 100%, 0% ); }
+.hr-bar.at-13 { clip: rect( 0%, 26%, 100%, 0% ); }
+.hr-bar.at-14 { clip: rect( 0%, 28%, 100%, 0% ); }
+.hr-bar.at-15 { clip: rect( 0%, 30%, 100%, 0% ); }
+.hr-bar.at-16 { clip: rect( 0%, 32%, 100%, 0% ); }
+.hr-bar.at-17 { clip: rect( 0%, 34%, 100%, 0% ); }
+.hr-bar.at-18 { clip: rect( 0%, 36%, 100%, 0% ); }
+.hr-bar.at-19 { clip: rect( 0%, 38%, 100%, 0% ); }
+.hr-bar.at-20 { clip: rect( 0%, 40%, 100%, 0% ); }
+.hr-bar.at-21 { clip: rect( 0%, 42%, 100%, 0% ); }
+.hr-bar.at-22 { clip: rect( 0%, 44%, 100%, 0% ); }
+.hr-bar.at-23 { clip: rect( 0%, 46%, 100%, 0% ); }
+.hr-bar.at-24 { clip: rect( 0%, 48%, 100%, 0% ); }
+.hr-bar.at-25 { clip: rect( 0%, 50%, 100%, 0% ); }
+.hr-bar.at-26 { clip: rect( 0%, 52%, 100%, 0% ); }
+.hr-bar.at-27 { clip: rect( 0%, 54%, 100%, 0% ); }
+.hr-bar.at-28 { clip: rect( 0%, 56%, 100%, 0% ); }
+.hr-bar.at-29 { clip: rect( 0%, 58%, 100%, 0% ); }
+.hr-bar.at-30 { clip: rect( 0%, 60%, 100%, 0% ); }
+.hr-bar.at-31 { clip: rect( 0%, 62%, 100%, 0% ); }
+.hr-bar.at-32 { clip: rect( 0%, 64%, 100%, 0% ); }
+.hr-bar.at-33 { clip: rect( 0%, 66%, 100%, 0% ); }
+.hr-bar.at-34 { clip: rect( 0%, 68%, 100%, 0% ); }
+.hr-bar.at-35 { clip: rect( 0%, 70%, 100%, 0% ); }
+.hr-bar.at-36 { clip: rect( 0%, 72%, 100%, 0% ); }
+.hr-bar.at-37 { clip: rect( 0%, 74%, 100%, 0% ); }
+.hr-bar.at-38 { clip: rect( 0%, 76%, 100%, 0% ); }
+.hr-bar.at-39 { clip: rect( 0%, 78%, 100%, 0% ); }
+.hr-bar.at-40 { clip: rect( 0%, 80%, 100%, 0% ); }
+.hr-bar.at-41 { clip: rect( 0%, 82%, 100%, 0% ); }
+.hr-bar.at-42 { clip: rect( 0%, 84%, 100%, 0% ); }
+.hr-bar.at-43 { clip: rect( 0%, 86%, 100%, 0% ); }
+.hr-bar.at-44 { clip: rect( 0%, 88%, 100%, 0% ); }
+.hr-bar.at-45 { clip: rect( 0%, 90%, 100%, 0% ); }
+.hr-bar.at-46 { clip: rect( 0%, 92%, 100%, 0% ); }
+.hr-bar.at-47 { clip: rect( 0%, 94%, 100%, 0% ); }
+.hr-bar.at-48 { clip: rect( 0%, 96%, 100%, 0% ); }
+.hr-bar.at-49 { clip: rect( 0%, 98%, 100%, 0% ); }
+.hr-bar.at-50 { clip: rect( 0%, 100%, 100%, 0% ); }
+
+/* How long a run takes: quarter seconds to 10, then every second to 60, then every 5 to 180.
+   The plugin picks the nearest. */
+.hr-bar.dur-q1 { transition-duration: 0.25s; }
+.hr-bar.dur-q2 { transition-duration: 0.50s; }
+.hr-bar.dur-q3 { transition-duration: 0.75s; }
+.hr-bar.dur-q4 { transition-duration: 1.00s; }
+.hr-bar.dur-q5 { transition-duration: 1.25s; }
+.hr-bar.dur-q6 { transition-duration: 1.50s; }
+.hr-bar.dur-q7 { transition-duration: 1.75s; }
+.hr-bar.dur-q8 { transition-duration: 2.00s; }
+.hr-bar.dur-q9 { transition-duration: 2.25s; }
+.hr-bar.dur-q10 { transition-duration: 2.50s; }
+.hr-bar.dur-q11 { transition-duration: 2.75s; }
+.hr-bar.dur-q12 { transition-duration: 3.00s; }
+.hr-bar.dur-q13 { transition-duration: 3.25s; }
+.hr-bar.dur-q14 { transition-duration: 3.50s; }
+.hr-bar.dur-q15 { transition-duration: 3.75s; }
+.hr-bar.dur-q16 { transition-duration: 4.00s; }
+.hr-bar.dur-q17 { transition-duration: 4.25s; }
+.hr-bar.dur-q18 { transition-duration: 4.50s; }
+.hr-bar.dur-q19 { transition-duration: 4.75s; }
+.hr-bar.dur-q20 { transition-duration: 5.00s; }
+.hr-bar.dur-q21 { transition-duration: 5.25s; }
+.hr-bar.dur-q22 { transition-duration: 5.50s; }
+.hr-bar.dur-q23 { transition-duration: 5.75s; }
+.hr-bar.dur-q24 { transition-duration: 6.00s; }
+.hr-bar.dur-q25 { transition-duration: 6.25s; }
+.hr-bar.dur-q26 { transition-duration: 6.50s; }
+.hr-bar.dur-q27 { transition-duration: 6.75s; }
+.hr-bar.dur-q28 { transition-duration: 7.00s; }
+.hr-bar.dur-q29 { transition-duration: 7.25s; }
+.hr-bar.dur-q30 { transition-duration: 7.50s; }
+.hr-bar.dur-q31 { transition-duration: 7.75s; }
+.hr-bar.dur-q32 { transition-duration: 8.00s; }
+.hr-bar.dur-q33 { transition-duration: 8.25s; }
+.hr-bar.dur-q34 { transition-duration: 8.50s; }
+.hr-bar.dur-q35 { transition-duration: 8.75s; }
+.hr-bar.dur-q36 { transition-duration: 9.00s; }
+.hr-bar.dur-q37 { transition-duration: 9.25s; }
+.hr-bar.dur-q38 { transition-duration: 9.50s; }
+.hr-bar.dur-q39 { transition-duration: 9.75s; }
+.hr-bar.dur-q40 { transition-duration: 10.00s; }
+.hr-bar.dur-11 { transition-duration: 11.0s; }
+.hr-bar.dur-12 { transition-duration: 12.0s; }
+.hr-bar.dur-13 { transition-duration: 13.0s; }
+.hr-bar.dur-14 { transition-duration: 14.0s; }
+.hr-bar.dur-15 { transition-duration: 15.0s; }
+.hr-bar.dur-16 { transition-duration: 16.0s; }
+.hr-bar.dur-17 { transition-duration: 17.0s; }
+.hr-bar.dur-18 { transition-duration: 18.0s; }
+.hr-bar.dur-19 { transition-duration: 19.0s; }
+.hr-bar.dur-20 { transition-duration: 20.0s; }
+.hr-bar.dur-21 { transition-duration: 21.0s; }
+.hr-bar.dur-22 { transition-duration: 22.0s; }
+.hr-bar.dur-23 { transition-duration: 23.0s; }
+.hr-bar.dur-24 { transition-duration: 24.0s; }
+.hr-bar.dur-25 { transition-duration: 25.0s; }
+.hr-bar.dur-26 { transition-duration: 26.0s; }
+.hr-bar.dur-27 { transition-duration: 27.0s; }
+.hr-bar.dur-28 { transition-duration: 28.0s; }
+.hr-bar.dur-29 { transition-duration: 29.0s; }
+.hr-bar.dur-30 { transition-duration: 30.0s; }
+.hr-bar.dur-31 { transition-duration: 31.0s; }
+.hr-bar.dur-32 { transition-duration: 32.0s; }
+.hr-bar.dur-33 { transition-duration: 33.0s; }
+.hr-bar.dur-34 { transition-duration: 34.0s; }
+.hr-bar.dur-35 { transition-duration: 35.0s; }
+.hr-bar.dur-36 { transition-duration: 36.0s; }
+.hr-bar.dur-37 { transition-duration: 37.0s; }
+.hr-bar.dur-38 { transition-duration: 38.0s; }
+.hr-bar.dur-39 { transition-duration: 39.0s; }
+.hr-bar.dur-40 { transition-duration: 40.0s; }
+.hr-bar.dur-41 { transition-duration: 41.0s; }
+.hr-bar.dur-42 { transition-duration: 42.0s; }
+.hr-bar.dur-43 { transition-duration: 43.0s; }
+.hr-bar.dur-44 { transition-duration: 44.0s; }
+.hr-bar.dur-45 { transition-duration: 45.0s; }
+.hr-bar.dur-46 { transition-duration: 46.0s; }
+.hr-bar.dur-47 { transition-duration: 47.0s; }
+.hr-bar.dur-48 { transition-duration: 48.0s; }
+.hr-bar.dur-49 { transition-duration: 49.0s; }
+.hr-bar.dur-50 { transition-duration: 50.0s; }
+.hr-bar.dur-51 { transition-duration: 51.0s; }
+.hr-bar.dur-52 { transition-duration: 52.0s; }
+.hr-bar.dur-53 { transition-duration: 53.0s; }
+.hr-bar.dur-54 { transition-duration: 54.0s; }
+.hr-bar.dur-55 { transition-duration: 55.0s; }
+.hr-bar.dur-56 { transition-duration: 56.0s; }
+.hr-bar.dur-57 { transition-duration: 57.0s; }
+.hr-bar.dur-58 { transition-duration: 58.0s; }
+.hr-bar.dur-59 { transition-duration: 59.0s; }
+.hr-bar.dur-60 { transition-duration: 60.0s; }
+.hr-bar.dur-65 { transition-duration: 65.0s; }
+.hr-bar.dur-70 { transition-duration: 70.0s; }
+.hr-bar.dur-75 { transition-duration: 75.0s; }
+.hr-bar.dur-80 { transition-duration: 80.0s; }
+.hr-bar.dur-85 { transition-duration: 85.0s; }
+.hr-bar.dur-90 { transition-duration: 90.0s; }
+.hr-bar.dur-95 { transition-duration: 95.0s; }
+.hr-bar.dur-100 { transition-duration: 100.0s; }
+.hr-bar.dur-105 { transition-duration: 105.0s; }
+.hr-bar.dur-110 { transition-duration: 110.0s; }
+.hr-bar.dur-115 { transition-duration: 115.0s; }
+.hr-bar.dur-120 { transition-duration: 120.0s; }
+.hr-bar.dur-125 { transition-duration: 125.0s; }
+.hr-bar.dur-130 { transition-duration: 130.0s; }
+.hr-bar.dur-135 { transition-duration: 135.0s; }
+.hr-bar.dur-140 { transition-duration: 140.0s; }
+.hr-bar.dur-145 { transition-duration: 145.0s; }
+.hr-bar.dur-150 { transition-duration: 150.0s; }
+.hr-bar.dur-155 { transition-duration: 155.0s; }
+.hr-bar.dur-160 { transition-duration: 160.0s; }
+.hr-bar.dur-165 { transition-duration: 165.0s; }
+.hr-bar.dur-170 { transition-duration: 170.0s; }
+.hr-bar.dur-175 { transition-duration: 175.0s; }
+.hr-bar.dur-180 { transition-duration: 180.0s; }
+
+/* A value that moves (fuel): each step eases. */
+.hr-bar.ease {
+    transition-duration: 0.25s;
+    transition-timing-function: ease-out;
+}
+
+/* After the at-N ladder, so they win over any of them: same specificity, later rule. */
+.hr-bar.run-fill  { clip: rect( 0%, 100%, 100%, 0% ); }
+.hr-bar.run-drain { clip: rect( 0%, 0%, 100%, 0% ); }
