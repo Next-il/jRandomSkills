@@ -285,7 +285,7 @@ namespace src.player
 
                     // The HUD card is a layout, not center HTML, so it no longer steps aside for other plugins' center
                     // HTML (and never covers it). Only a WASD menu, which still is center HTML, keeps stepping aside.
-                    if (isOtherPlugin && HeroesHud.IsDrawing(player) && !SkillUtils.HasMenu(player))
+                    if (isOtherPlugin && HeroesHud.IsDrawing(player) && !SkillUtils.HasWasdMenu(player))
                         return HookResult.Continue;
 
                     if (isOtherPlugin && playerInfo.HideHUD != int.MaxValue)
@@ -765,6 +765,10 @@ namespace src.player
         {
             lock (setLock)
             {
+                // A dead player's banner (an enemy skill on them, a hot bomb) goes with them
+                if (@event.Userid is { IsValid: true } dead)
+                    HeroesHud.ClearAlerts(dead);
+
                 DispatchToActiveSkills("PlayerDeath", @event);
 
                 var victim = PlayerManager.GetPlayerEvent(@event.Userid);
@@ -807,7 +811,8 @@ namespace src.player
 
                 if ((pressed & skillButton) == 0) return;
 
-                if (SkillUtils.HasMenu(player)) return;
+                // The WASD menu takes the key (E selects). The HUD's pick menu does not: the key opens it again below.
+                if (SkillUtils.HasWasdMenu(player)) return;
 
                 var playerInfo = PlayerManager.GetPlayer(player);
                 if (playerInfo == null || playerInfo.IsDrawing) return;
@@ -853,6 +858,9 @@ namespace src.player
                         if (designer.Contains("button") || designer.Contains("weapon") || designer.Contains("blocker")) return;
                     }
                 }
+
+                // A pick waiting on the player (closed with the X): the key opens it again, or closes it when open
+                if (HeroesMenu.OnSkillKey(player)) return;
 
                 Debug.WriteToDebug($"Player {player.PlayerName} used the skill: {playerInfo.Skill} by PlayerButtons: {pressed}", DebugCategory.Skill);
                 Instance.SkillAction(playerInfo.Skill.ToString(), "UseSkill", [player]);

@@ -95,7 +95,11 @@ namespace src.command
             Debug.WriteToDebug($"Player {player.PlayerName} used the skill: {playerInfo.Skill}", DebugCategory.Skill);
 
             if (commands == null || commands.Length == 0)
-                Instance.SkillAction(playerInfo.Skill.ToString(), "UseSkill", [player]);
+            {
+                // css_useSkill with no argument is the skill key: it opens a pick closed with the X again
+                if (!HeroesMenu.OnSkillKey(player))
+                    Instance.SkillAction(playerInfo.Skill.ToString(), "UseSkill", [player]);
+            }
             else
                 Instance.SkillAction(playerInfo.Skill.ToString(), "TypeSkill", [player, commands]);
         }

@@ -275,6 +275,8 @@ namespace src.player
 
         private static HookResult RoundEnd(EventRoundEnd @event, GameEventInfo info)
         {
+            // No banner carries over into the next round
+            HeroesHud.ClearAlerts(null);
             Illiterate.Disable();
             DispatchToActiveSkills("RoundEnd");
 

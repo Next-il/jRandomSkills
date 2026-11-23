@@ -1332,12 +1332,18 @@ namespace src.utils
 
         public static void CloseMenu(CCSPlayerController? player)
         {
+            HeroesMenu.Close(player);
+
             var manager = GetMenuManager();
             if (manager == null) return;
             manager.CloseMenu(player);
         }
 
-        public static bool HasMenu(CCSPlayerController? player)
+        /// <summary>A pick menu is pending: the HUD's mouse menu (on screen or closed with the X) or a WASD menu.</summary>
+        public static bool HasMenu(CCSPlayerController? player) => HeroesMenu.Has(player) || HasWasdMenu(player);
+
+        /// <summary>A WASD menu, the center HTML one: what steps aside for other plugins' center HTML.</summary>
+        public static bool HasWasdMenu(CCSPlayerController? player)
         {
             var manager = GetMenuManager();
             if (manager == null) return false;
@@ -1366,6 +1372,9 @@ namespace src.utils
         public static void UpdateMenu(CCSPlayerController? player, ConcurrentBag<(string, string)> items)
         {
             if (player == null) return;
+
+            // The HUD's pick menu, when it has this player's pick
+            if (HeroesMenu.Update(player, items)) return;
 
             var manager = GetMenuManager();
             if (manager == null) return;
@@ -1425,6 +1434,16 @@ namespace src.utils
             if (skillData == null) return;
 
             var manager = GetMenuManager();
+
+            // The HUD's mouse menu (src/hud/HeroesMenu.cs) when the HUD draws for this player; the WASD menu below
+            // otherwise (Hud.Enabled or Hud.PickMenu off, or the panel can't reach them).
+            if (HeroesMenu.TryOpen(player, playerInfo, enemies, lastElement))
+            {
+                manager?.CloseMenu(player);
+                return;
+            }
+            HeroesMenu.Close(player);
+
             if (manager == null) return;
 
             var config = Config.LoadedConfig.HtmlHudCustomisation;

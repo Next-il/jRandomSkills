@@ -68,10 +68,6 @@ namespace src.utils
         /// between steps; the HUD frame is every 4 ticks.</summary>
         private static readonly TimeSpan BarEvery = TimeSpan.FromSeconds(0.2);
 
-        /// <summary>Where the bar steps (at-N) go, for the scrub on a redraw. The card's sit on the card itself: one class
-        /// moves its bar and, once it is folded, the icon tile's fill.</summary>
-        private static readonly string[] BarIds = [CardId, "sp_bar", "al_bar"];
-
         /// <summary>A cooldown shorter than this comes back without opening a folded card (Dash, Fortnite, Flashlight: 2s).</summary>
         private const double MinReExpandCooldown = 5.0;
 
@@ -98,6 +94,7 @@ namespace src.utils
         public static void Load(BasePlugin owner)
         {
             plugin = owner;
+            HeroesMenu.Load(owner);
             if (Settings.Enabled)
                 EnsurePanel();
         }
@@ -106,6 +103,7 @@ namespace src.utils
         {
             try
             {
+                HeroesMenu.Unload();
                 panel?.Dispose();
                 if (Panorama.IsInitialised)
                     Panorama.Shutdown();
@@ -160,18 +158,31 @@ namespace src.utils
 
             if (e.Action == PanelAction.Restored)
             {
-                // A kept entity still wears the bar steps the old view turned on, and the new view does not know
-                // them: take them off, or the stylesheet paints the higher of two steps. On a rebuilt one, a no-op.
+                // The new view assumes the layout as authored, but the entity is usually KEPT (a round restart preserves
+                // custom_hud_layout, a respawn keeps it too) and still wears every class the old view turned on. Put it
+                // back to exactly the authored state. Taking off only the bar steps, as before, left a banner that was
+                // up at that moment with its "show" on and nothing that would ever take it off: the new view believed
+                // the alert collapsed and wrote nothing, so "You have been marked as a nemesis" (raised at round start,
+                // right as the spawn's Restored lands) stayed on screen until the next alert. The same held for the
+                // Coins line and the spectator line. What is still wanted slides back in on the next frame. On a
+                // rebuilt entity this writes what it already has.
+                var fresh = new View();
                 if (panel != null && views.TryGetValue(e.Player.Slot, out var old))
                 {
-                    foreach (var id in BarIds)
+                    foreach (var ((id, cls), on) in old.Classes)
                     {
-                        if (old.Groups.TryGetValue((id, "at"), out var step) && step != null)
-                            panel.SetClassFor(e.Player, id, step, false);
+                        if (on && !(fresh.Classes.TryGetValue((id, cls), out var authored) && authored))
+                            panel.TrySetClassFor(e.Player, id, cls, false);
+                    }
+
+                    foreach (var ((id, cls), on) in fresh.Classes)
+                    {
+                        if (on && !(old.Classes.TryGetValue((id, cls), out var was) && was))
+                            panel.TrySetClassFor(e.Player, id, cls, true);
                     }
                 }
 
-                views[e.Player.Slot] = new View();
+                views[e.Player.Slot] = fresh;
             }
             else if (e.Action == PanelAction.Close)
                 views.Remove(e.Player.Slot);
@@ -181,6 +192,7 @@ namespace src.utils
         {
             views.Remove(slot);
             nextOpenTry.Remove(slot);
+            HeroesMenu.OnDisconnect(slot);
             try { panel?.Close(slot); }
             catch { /* the slot is gone either way */ }
         }
@@ -200,6 +212,24 @@ namespace src.utils
             panel = null;
             views.Clear();
             nextOpenTry.Clear();
+
+            // After panel = null, so the pick menu's hand-off to the WASD menus does not land back here
+            HeroesMenu.Disable();
+        }
+
+        /// <summary>
+        /// Round end (every viewer) or a death (that one): the banner on screen leaves now, with its exit, and nothing
+        /// queued comes up after it. A map change drops the views, and a new map builds a new entity.
+        /// </summary>
+        public static void ClearAlerts(CCSPlayerController? player)
+        {
+            var now = DateTime.Now;
+            foreach (var (slot, v) in views)
+            {
+                if (player != null && slot != player.Slot) continue;
+                v.AlertPending = null;
+                if (v.AlertShown != null && v.AlertUntil > now) v.AlertUntil = now;
+            }
         }
 
         /// <summary>Map change: every stored time is meaningless on the next map.</summary>
@@ -207,6 +237,7 @@ namespace src.utils
         {
             views.Clear();
             nextOpenTry.Clear();
+            HeroesMenu.OnMapStart();
         }
 
         private static bool IsHuman(CCSPlayerController? player) =>
@@ -279,9 +310,12 @@ namespace src.utils
             var rules = jRandomSkills.Instance?.GameRules;
             bool round = rules != null && !rules.WarmupPeriod && rules.GamePhase < 5;
 
-            // The WASD menus are still center HTML and still step aside for other plugins' center HTML
-            // (PlayerEvents.GetPrintToCenterHtml); this un-pauses them once that is over, as before.
-            if (info != null && info.HideHUD < Server.TickCount && SkillUtils.HasMenu(player))
+            // The pick menu (heroes_menu.xml): HP and alive state while it is open
+            HeroesMenu.Frame(player, now);
+
+            // The WASD menus (Hud.PickMenu off) are still center HTML and still step aside for other plugins' center
+            // HTML (PlayerEvents.GetPrintToCenterHtml); this un-pauses them once that is over, as before.
+            if (info != null && info.HideHUD < Server.TickCount && SkillUtils.HasWasdMenu(player))
                 SkillUtils.SetMenuPaused(player, false);
 
             bool card = false, spec = false;
@@ -310,8 +344,9 @@ namespace src.utils
         {
             bool cross = Cross;
 
-            // A WASD menu is center HTML, right where the card sits under the crosshair.
-            if (cross && SkillUtils.HasMenu(p)) return false;
+            // A WASD menu is center HTML, right where the card sits under the crosshair; the pick menu is left of
+            // center and only reaches it in the middle (Hud.MenuPosition = Center).
+            if (cross && (SkillUtils.HasWasdMenu(p) || HeroesMenu.IsShown(p))) return false;
 
             One(p, v, CardId, "pos", CardPlace);
 
@@ -331,6 +366,18 @@ namespace src.utils
             bool illiterate = Illiterate.CheckIlliterateSkill(p);
 
             var m = Resolve(p, info, skill, kind, now);
+
+            // A pick waiting on the player: "Picking" while the menu is open, and the key that opens it again once it
+            // was closed with the X. Only over the plain state: a skill's own label or cooldown wins.
+            bool parked = !off && key.Length > 0 && HeroesMenu.IsParked(p);
+            bool picking = !off && !parked && HeroesMenu.IsShown(p);
+            if ((parked || picking) && m.State == HudState.Auto && string.IsNullOrEmpty(m.Big))
+            {
+                m.State = HudState.Ready;
+                m.Cls = "s-ready";
+                m.Label = parked ? T(p, "hud_pick_again", "Pick") : T(p, "hud_picking", "Picking");
+                showKey |= parked;
+            }
             string name = p.GetSkillName(skill);
             string desc = SkillCatalog.Description(p, skill);
             string err = m.Err;
@@ -367,7 +414,7 @@ namespace src.utils
             // Hud.ReExpandSeconds when the skill is ready again, gets a charge back, can't be used, or is switched off.
             if (fresh)
                 Expand(v, now, Settings.ExpandedSeconds);
-            else if ((cooled && v.LastCooldown >= MinReExpandCooldown) || refill || cantUse || lost)
+            else if ((cooled && v.LastCooldown >= MinReExpandCooldown) || refill || cantUse || lost || (parked && !v.LastParked))
                 Expand(v, now, Settings.ReExpandSeconds);
             bool mini = Settings.ExpandedSeconds > 0 && now >= v.ExpandUntil;
 
@@ -429,6 +476,7 @@ namespace src.utils
             v.LastCount = m.Count;
             v.LastToggle = m.ToggleOn;
             v.LastOff = off;
+            v.LastParked = parked;
             if (m.State == HudState.Cooldown) v.LastCooldown = m.Seconds;
             return true;
         }
@@ -1291,6 +1339,8 @@ namespace src.utils
             public int LastCount = -1;
             public bool LastToggle;
             public bool LastOff;
+            /// <summary>A pick closed with the X: the card opens for a moment to show the key that brings it back.</summary>
+            public bool LastParked;
             /// <summary>The length of the last cooldown drawn: only a long one opens a folded card when it ends.</summary>
             public double LastCooldown;
 

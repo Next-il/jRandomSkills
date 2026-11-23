@@ -11,6 +11,9 @@ namespace src.menu
     {
         public static void DisplaySkillsList(CCSPlayerController player)
         {
+            // The HUD's mouse list (heroes_menu.xml); !skills again closes it. The center menu below otherwise.
+            if (HeroesMenu.ToggleSkills(player)) return;
+
             CenterHtmlMenu menu = new($"[ ★ {player.GetTranslationWithoutIlliterate("skills_menu")} ★ ]", Instance);
             
             foreach (var skillInfo in SkillData.Skills)

@@ -1,0 +1,151 @@
+<root>
+	<styles>
+		<include src="s2r://panorama/styles/custom_game/hud_shared.vcss_c" />
+		<include src="s2r://panorama/styles/custom_game/heroes_menu.vcss_c" />
+	</styles>
+
+	<!--
+		Retake Heroes pick menu - jRandomSkills' "select a player" powers (Thief, Poison, Jammer and the other
+		pick skills, about 28) as a mouse menu instead of WASDMenuAPI's center HTML (W/S + E). Also !skills.
+		Driven by src/hud/HeroesMenu.cs; the spec is previews/heroes, tab "Pick a player". Same card family as
+		heroes_hud.xml: the skill's hue on the top line, square corners, fill-only rows.
+
+		CONTRACT (src/hud/HeroesMenu.cs must match)
+		  RootPanelId  = "HeroesMenuRoot"   RevealClass = "show"   CloseButtonId = "hm_close"   RowCount = 0
+		  CaptureInput = true               HideHud = None         SharedText = false
+
+		The root is full-screen with no dim; the card sits left of center (p-left, the default) or in the
+		middle (p-center), clear of the skill card on the right.
+
+		POOL  hm_r0..hm_r5  one page of rows; more than 6 go on pages (hm_prev / hm_next)
+
+		BUTTONS (PanelAction.Button, by id)
+		  hm_close            close (the library handles it; the skill key opens it again)
+		  hm_rN               pick row N of the page
+		  hm_prev hm_next     page back / on
+
+		DIALOG VARIABLES
+		  hm_what hm_skill hm_hint hm_empty hm_foot hm_page
+		  hm_rN_n hm_rN_s hm_rN_hp           name, note (or why it can't be picked), HP or DEAD
+
+		CLASSES THE SERVER TOGGLES
+		  hm         h-<hue> (14) | k-pick k-bomb k-skills | p-left p-center | nohint empty one nofoot
+		  hm_rN      hidden | off (can't be picked) | opt (not a player: no HP, no team) | act (an action row)
+		             dead | nonote | h-<hue> (an option's own colour, or none)
+		  hm_rN_tm   tm-0 tm-2 tm-3            the team stripe: none, T, CT
+		  hm_rN_bar  hp-0..hp-10 (10% a step, a clip with one fixed 0.3s glide) | t-hi t-mid t-lo
+		  hm_prev hm_next   off
+
+		  <hue>  red orange amber yellow lime green teal cyan blue indigo violet pink white grey
+	-->
+	<Panel class="hud-screen" hittest="false">
+		<Panel id="HeroesMenuRoot" class="hm-root" hittest="false">
+			<Panel id="hm" class="hm h-white k-pick p-left" hittest="false">
+				<Panel class="hm-head" hittest="false">
+					<Panel class="hm-tile" hittest="false"><Panel class="hm-ic" hittest="false" /></Panel>
+					<Panel class="hm-titles" hittest="false">
+						<Label class="hm-what" text="{s:hm_what}" />
+						<Label class="hm-skill" text="{s:hm_skill}" />
+					</Panel>
+					<Button id="hm_close" class="hm-x"><Label class="hm-x-lbl" text="&#x2715;" /></Button>
+				</Panel>
+				<Label class="hm-hint" text="{s:hm_hint}" />
+				<Panel class="hm-list" hittest="false">
+				<Button id="hm_r0" class="hm-row hidden">
+					<Panel id="hm_r0_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r0_n}" />
+						<Label class="hm-note" text="{s:hm_r0_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r0_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r0_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+				<Button id="hm_r1" class="hm-row hidden">
+					<Panel id="hm_r1_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r1_n}" />
+						<Label class="hm-note" text="{s:hm_r1_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r1_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r1_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+				<Button id="hm_r2" class="hm-row hidden">
+					<Panel id="hm_r2_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r2_n}" />
+						<Label class="hm-note" text="{s:hm_r2_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r2_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r2_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+				<Button id="hm_r3" class="hm-row hidden">
+					<Panel id="hm_r3_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r3_n}" />
+						<Label class="hm-note" text="{s:hm_r3_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r3_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r3_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+				<Button id="hm_r4" class="hm-row hidden">
+					<Panel id="hm_r4_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r4_n}" />
+						<Label class="hm-note" text="{s:hm_r4_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r4_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r4_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+				<Button id="hm_r5" class="hm-row hidden">
+					<Panel id="hm_r5_tm" class="hm-stripe tm-0" hittest="false" />
+					<Panel class="hm-main" hittest="false">
+						<Label class="hm-name" text="{s:hm_r5_n}" />
+						<Label class="hm-note" text="{s:hm_r5_s}" />
+					</Panel>
+					<Panel class="hm-hp" hittest="false">
+						<Panel class="hm-hprow" hittest="false">
+							<Label class="hm-hpn" text="{s:hm_r5_hp}" />
+							<Label class="hm-hpu" text="HP" />
+						</Panel>
+						<Panel class="hm-hptrack" hittest="false"><Panel id="hm_r5_bar" class="hm-hpbar hp-10 t-hi" hittest="false" /></Panel>
+					</Panel>
+				</Button>
+					<Label class="hm-empty" text="{s:hm_empty}" />
+				</Panel>
+				<Panel class="hm-foot" hittest="false">
+					<Label class="hm-fhint" text="{s:hm_foot}" />
+					<Panel class="hm-pager" hittest="false">
+						<Button id="hm_prev" class="hm-pg"><Label class="hm-pg-lbl" text="&#x2039;" /></Button>
+						<Label class="hm-page" text="{s:hm_page}" />
+						<Button id="hm_next" class="hm-pg"><Label class="hm-pg-lbl" text="&#x203A;" /></Button>
+					</Panel>
+				</Panel>
+			</Panel>
+		</Panel>
+	</Panel>
+</root>

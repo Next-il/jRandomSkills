@@ -414,6 +414,15 @@ namespace src.utils
 
             /// <summary>Keep the round's "skill: description" chat line, which the card otherwise replaces.</summary>
             public bool SkillChatLine { get; set; } = false;
+
+            /// <summary>
+            /// Pick skills (Thief, Poison, Zone Reaper, Gambler...) and !skills as a mouse menu (heroes_menu.xml).
+            /// False keeps the WASD menus and the old !skills list.
+            /// </summary>
+            public bool PickMenu { get; set; } = true;
+
+            /// <summary>Where the pick menu sits: "Left" (left of center, clear of the card) or "Center".</summary>
+            public string MenuPosition { get; set; } = "Left";
         }
 
         public class HtmlHudCustomisation

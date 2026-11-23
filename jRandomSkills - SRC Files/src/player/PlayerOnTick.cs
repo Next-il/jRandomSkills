@@ -100,7 +100,7 @@ namespace src.player
 
             if (player.PawnIsAlive && skillPlayer.SkillHudExpired < now && string.IsNullOrEmpty(skillPlayer.PrintHTML)) return;
 
-            if (SkillUtils.HasMenu(player))
+            if (SkillUtils.HasWasdMenu(player))
             {
                 SkillUtils.SetMenuPaused(player, false);
                 return;
